@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A native VS Code coding agent powered directly by a Dify Chatflow.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -100,7 +100,7 @@
         },
         "difyForVscode.maxAgentSteps": {
           "type": "number",
-          "default": 20,
+          "default": 30,
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum Dify/tool loop steps for one user request."
@@ -110,7 +110,7 @@
           "default": 120000,
           "minimum": 1000,
           "maximum": 600000,
-          "description": "Timeout for run_command in milliseconds."
+          "description": "Timeout for run_command and patch/git tools in milliseconds."
         },
         "difyForVscode.checkUpdatesOnStartup": {
           "type": "boolean",
