@@ -1,62 +1,50 @@
 # Dify for VS Code
 
-A standalone VS Code coding agent that connects **directly to a Dify Chatflow**. No Cline, Roo, Dify plugin, or external proxy is required.
+A standalone VS Code coding/automation agent that connects **directly to a Dify Chatflow**. No Cline, Roo, Dify plugin, or external proxy is required.
 
 ## Features
 
 - Native VS Code sidebar chat UI
 - Direct Dify `/v1/chat-messages` connection
-- OpenAI-compatible agent/tool message history
-- Workspace file reading and listing
-- Code/text search
-- File creation and rewriting
-- Exact text replacement
-- Shell command execution
-- VS Code diagnostics collection
-- **YOLO mode**: automatically execute mutating tools and shell commands without confirmation
+- OpenAI-compatible tool-call history
+- 23 built-in local tools for reading, searching, editing, file management, Git, diagnostics, web fetch, and user questions
+- Workspace path protection for file operations
+- Approval prompts for mutating tools
+- **YOLO mode** for auto-approval
+- New Chat button with clean context
 - Dify API key stored in VS Code SecretStorage
-- Conversation state kept per workspace
 - GitHub Release update check
 
 ## Install
 
-Download the latest `.vsix` from the GitHub Releases page, then in VS Code open:
+Download the latest `.vsix` from GitHub Releases, then in VS Code:
 
 ```text
-Extensions
--> ...
--> Install from VSIX...
+Extensions -> ... -> Install from VSIX...
 ```
 
-Select the downloaded `dify-for-vscode-x.y.z.vsix` file.
+## Dify setup
 
-## Quick start
+You need a Dify **Chatflow** plus its App API URL/key.
 
-You need two things before configuring the VS Code extension:
+### Start node variables
 
-1. A Dify **Chatflow** configured with the input/output contract below.
-2. The Dify App **API Base URL** and **API Key** for that Chatflow.
-
-## Configure the Dify Chatflow
-
-The easiest option is to import the Chatflow DSL included with this repository and then publish it in Dify.
-
-If you build the Chatflow manually, the Start node must contain these input variables:
+Create these Start inputs:
 
 | Variable | Type | Required | Purpose |
 | --- | --- | --- | --- |
-| `messages_json` | Paragraph / long text | Yes | Complete OpenAI-compatible conversation history serialized as JSON |
-| `tools_json` | Paragraph / long text | Recommended | OpenAI-compatible tool definitions serialized as JSON |
-| `tool_choice_json` | Paragraph / text | Recommended | Tool choice mode. The extension currently sends `"auto"` |
-| `retry_feedback` | Paragraph / text | Optional | Reserved for retry/validation feedback; currently sent as an empty string |
+| `messages_json` | Paragraph / long text | Yes | Complete OpenAI-compatible conversation history as JSON |
+| `tools_json` | Paragraph / long text | Recommended | Tool schemas sent by the VS Code extension |
+| `tool_choice_json` | Paragraph / text | Recommended | Extension sends `"auto"` |
+| `retry_feedback` | Paragraph / text | Optional | Reserved feedback field; currently empty |
 
-The extension sends the complete conversation on every request and intentionally does **not** depend on Dify conversation memory.
+The extension sends the complete history every request, so it does not depend on Dify conversation memory.
 
-### Chatflow response format
+### Recommended Chatflow behavior
 
-Your final Answer node must return the LLM output verbatim as JSON text.
+Your LLM node should inspect `messages_json` and `tools_json`, decide the next step, and return one JSON object only.
 
-For a normal assistant answer:
+Normal answer:
 
 ```json
 {
@@ -66,7 +54,7 @@ For a normal assistant answer:
 }
 ```
 
-For a tool call:
+Tool call:
 
 ```json
 {
@@ -85,173 +73,137 @@ For a tool call:
 }
 ```
 
-`function.arguments` must be a JSON **string**, matching the OpenAI Chat Completions tool-call format.
+`function.arguments` must be a JSON **string**.
 
-See [`dify/chatflow-prompt.md`](dify/chatflow-prompt.md) for the exact request/response contract.
+The extension tolerates common model wrappers such as `<think>...</think>` and extracts the final JSON object, but the best Chatflow behavior is still to return clean JSON.
 
-## Publish the Chatflow in Dify
+See [`dify/chatflow-prompt.md`](dify/chatflow-prompt.md) for the protocol contract.
 
-After editing the Chatflow, publish it before using the API.
+### Publish the Chatflow
 
-Typical flow in Dify:
+After editing the workflow:
 
 ```text
-Open your Chatflow application
--> verify the workflow runs successfully
--> Publish / Update
+Open Chatflow -> test -> Publish / Update
 ```
 
-The API uses the published version of the application, so changes made only in the editor may not be visible to the VS Code extension until you publish again.
+The API uses the published application version.
 
-## Find the Dify API address and API key
+## Find the Dify API URL and key
 
-Open the Chatflow application in Dify and locate its API access/API reference page. Depending on the Dify version, the entry may be named **API Access**, **Access API**, or **API Reference**.
+Open the Chatflow application and find **API Access**, **Access API**, or **API Reference** (name varies by Dify version).
 
-That page shows both the API endpoint examples and the application's API keys.
-
-### API Base URL
-
-For this extension, configure the base URL only up to `/v1`.
-
-For example, if Dify shows a Chatflow request URL like:
+If Dify shows:
 
 ```text
 https://dify.example.com/v1/chat-messages
 ```
 
-enter this in the extension:
+configure the extension with only:
 
 ```text
 https://dify.example.com/v1
 ```
 
-Do **not** include `/chat-messages` because the extension appends that path automatically.
+The extension appends `/chat-messages` automatically.
 
-For a self-hosted Dify instance the value may look like:
-
-```text
-http://10.0.0.20/v1
-```
-
-or:
-
-```text
-https://dify.company.local/v1
-```
-
-### API Key
-
-On the same API access page, create or copy an App API key. Dify application keys normally look like:
+On the same API page, create/copy the App API key, normally:
 
 ```text
 app-xxxxxxxxxxxxxxxx
 ```
 
-Keep this key private. Do not commit it to GitHub or store it in workspace files.
-
-The VS Code extension stores the key in VS Code `SecretStorage`, not in `settings.json`.
+Do not commit this key. The extension stores it in VS Code SecretStorage.
 
 ## Configure the VS Code extension
 
-In VS Code run:
+Run:
 
 ```text
 Dify for VS Code: Configure
 ```
 
-Then enter:
+Enter:
 
-### Base URL
+- Base URL: `https://dify.example.com/v1`
+- App API Key: `app-...`
+- User ID: e.g. `vscode-agent`
 
-```text
-https://dify.example.com/v1
-```
-
-### App API Key
-
-```text
-app-xxxxxxxxxxxxxxxx
-```
-
-### User ID
-
-Any stable identifier is acceptable, for example:
-
-```text
-vscode-agent
-```
-
-The extension sends requests to:
-
-```text
-POST {Base URL}/chat-messages
-```
-
-Example:
-
-```text
-POST https://dify.example.com/v1/chat-messages
-```
-
-## Verify the connection
-
-After configuring the extension, open the Dify sidebar in VS Code and try:
+Then click **+ New Chat** and test:
 
 ```text
 ping
 ```
 
-Then try a workspace-aware request:
+Then try:
 
 ```text
-Inspect this project and tell me what it does.
+Inspect this workspace and tell me what it does.
 ```
 
-To verify tool execution, try:
+## Built-in tools (0.2.0)
 
-```text
-Read package.json and tell me the current extension version.
-```
-
-If Dify returns an error such as:
-
-```text
-messages_json is required in input form
-```
-
-check that the Chatflow Start node contains the exact variable names documented above and that the latest Chatflow version has been published.
-
-## Built-in tools
+### Workspace / inspection
 
 - `get_workspace_info`
+- `file_info`
 - `read_file`
+- `read_files`
 - `list_files`
-- `search_files`
+- `search_files` (regex)
+- `list_code_definitions`
+- `get_diagnostics`
+- `open_file`
+
+### Editing / file management
+
 - `write_file`
 - `replace_text`
+- `insert_text`
+- `apply_patch`
+- `create_directory`
+- `move_file`
+- `rename_file`
+- `copy_file`
+- `delete_file`
+
+### Execution / Git
+
 - `run_command`
-- `get_diagnostics`
+- `git_status`
+- `git_diff`
 
-Read-only tools execute automatically. By default, `write_file`, `replace_text`, and `run_command` require approval.
+### External / interaction
 
-## YOLO mode
+- `fetch_url`
+- `ask_user`
 
-Turn on **YOLO** in the sidebar to auto-approve supported file writes and shell commands.
+This tool surface is intentionally similar in capability coverage to modern coding agents such as Roo Code and Cline: read/search, precise edits/patches, shell execution, code structure, external retrieval, and human-in-the-loop interaction.
 
-With YOLO enabled, the model can modify files and run shell commands without per-action confirmation. Prefer using it in a Git-controlled workspace so changes can be reviewed or reverted easily.
+Browser automation, MCP servers, and semantic vector indexing are **not** bundled into 0.2.0; those require dedicated subsystems rather than simple local functions.
+
+## Safety and YOLO
+
+Read-only tools execute automatically. Mutating tools such as writes, moves, deletes, patches, directory creation, copies, and shell commands require approval by default.
+
+Turn on **YOLO** to auto-approve them. File tools are constrained to the current workspace; shell commands can still affect resources outside the workspace if the command itself does so.
+
+`delete_file` uses the OS trash by default when supported.
 
 ## Updates
 
-The extension can check the GitHub Releases page for newer versions.
-
-It checks once after startup by default. You can also run:
+The extension checks GitHub Releases after startup by default. You can also run:
 
 ```text
 Dify for VS Code: Check for Updates
 ```
 
-If a newer version exists, VS Code shows a notification with a link to the corresponding GitHub Release.
-
 ## Development
 
-The extension intentionally has no runtime npm dependencies. `extension.js` contains the stable runtime, while `compat.js` adapts it to the current Dify Chatflow contract.
+Runtime has no third-party npm dependencies.
+
+- `extension.js` — agent loop, UI, approvals, Dify request runtime
+- `tools.js` — tool registry and local executors
+- `compat.js` — Dify Chatflow protocol adapter and GitHub update checker
+
+Packaging uses `@vscode/vsce` only as a development dependency.
