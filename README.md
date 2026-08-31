@@ -6,7 +6,7 @@ A standalone VS Code coding agent that connects **directly to a Dify Chatflow**.
 
 - Native VS Code sidebar chat UI
 - Direct Dify `/v1/chat-messages` connection
-- Agent tool loop controlled by your Chatflow
+- OpenAI-compatible agent/tool message history
 - Workspace file reading and listing
 - Code/text search
 - File creation and rewriting
@@ -19,67 +19,55 @@ A standalone VS Code coding agent that connects **directly to a Dify Chatflow**.
 
 ## Install
 
-Install the `.vsix` from VS Code:
-
-1. Extensions
-2. `...`
-3. **Install from VSIX...**
-4. Select `dify-for-vscode-0.1.0.vsix`
-
-A **Dify** icon appears in the Activity Bar.
+Install the `.vsix` from VS Code: Extensions -> `...` -> **Install from VSIX...**.
 
 ## Configure
 
-Open the Dify sidebar and click **Configure**, or run:
+Run `Dify for VS Code: Configure`, then enter the Dify `/v1` base URL, App API key, and User ID.
 
-```text
-Dify for VS Code: Configure
-```
+## Dify Chatflow contract
 
-Enter:
+Version 0.1.1 is aligned with the included Chatflow DSL: [`dify/coding-agent1.yml`](dify/coding-agent1.yml). Import that YAML into Dify for the simplest setup.
 
-- Base URL, for example `http://dify.example.local/v1`
-- Dify App API key, for example `app-xxxxxxxx`
-- User ID
+The Chatflow Start node expects exactly these inputs:
 
-The API key is saved using VS Code SecretStorage.
+- `messages_json` — required; complete OpenAI-compatible messages array serialized as JSON
+- `tools_json` — OpenAI tools array serialized as JSON
+- `tool_choice_json` — currently sent as `"auto"`
+- `retry_feedback` — currently sent as an empty string
 
-## Dify Chatflow
+The extension sends the complete conversation on every request and intentionally does **not** rely on Dify conversation memory.
 
-See [`dify/chatflow-prompt.md`](dify/chatflow-prompt.md).
-
-The Start node requires:
-
-- `messages` (Paragraph)
-- `tools` (Paragraph)
-
-The LLM should return either a normal message object or a tool-calls object.
-
-### Normal message
+### Normal response
 
 ```json
 {
   "type": "message",
-  "content": "Done."
+  "content": "Done.",
+  "tool_calls": []
 }
 ```
 
-### Tool call
+### Tool response
 
 ```json
 {
   "type": "tool_calls",
+  "content": "",
   "tool_calls": [
     {
       "id": "call_001",
-      "name": "read_file",
-      "arguments": {
-        "path": "src/main.ts"
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "arguments": "{\"path\":\"src/main.ts\"}"
       }
     }
   ]
 }
 ```
+
+`function.arguments` must be a JSON **string**, matching OpenAI Chat Completions tool-call format.
 
 ## Built-in tools
 
@@ -96,13 +84,7 @@ Read-only tools execute automatically. By default, `write_file`, `replace_text`,
 
 ## YOLO mode
 
-Turn on **YOLO** in the sidebar to auto-approve all supported tools, including file writes and shell commands.
-
-YOLO mode gives the model permission to modify workspace files and run commands without per-action confirmation. Use it only with a Chatflow/model you trust and preferably with source control enabled.
-
-## Scope and safety
-
-File tools are restricted to the currently opened workspace. `run_command` runs with the workspace root as its working directory. Shell commands can still affect resources outside the workspace if the command itself does so.
+Turn on **YOLO** in the sidebar to auto-approve supported file writes and shell commands. Use source control when possible.
 
 ## Development
 
