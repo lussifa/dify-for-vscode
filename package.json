@@ -1,8 +1,8 @@
 {
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
-  "description": "A native VS Code coding agent powered directly by a Dify Chatflow.",
-  "version": "0.2.0",
+  "description": "A Dify-powered VS Code agent platform with workspace tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
+  "version": "0.3.0",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -16,16 +16,38 @@
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": ["AI", "Other"],
-  "keywords": ["dify", "chatflow", "ai", "agent", "coding"],
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "dify",
+    "chatflow",
+    "ai",
+    "agent",
+    "coding",
+    "mcp",
+    "multi-agent",
+    "crewai",
+    "playwright",
+    "semantic-search"
+  ],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
     "onCommand:difyForVscode.newChat",
     "onCommand:difyForVscode.toggleYolo",
-    "onCommand:difyForVscode.checkUpdates"
+    "onCommand:difyForVscode.checkUpdates",
+    "onCommand:difyForVscode.refreshMcp",
+    "onCommand:difyForVscode.startMcpServer",
+    "onCommand:difyForVscode.configureEmbeddings",
+    "onCommand:difyForVscode.showMcpStatus",
+    "onCommand:difyForVscode.stopMcpServer",
+    "onCommand:difyForVscode.copyMcpBridgeConfig",
+    "onCommand:difyForVscode.buildSemanticIndex",
+    "onCommand:difyForVscode.semanticIndexStatus"
   ],
-  "main": "./compat.js",
+  "main": "./platform-entry.js",
   "icon": "media/icon.png",
   "contributes": {
     "commands": [
@@ -46,6 +68,38 @@
       {
         "command": "difyForVscode.checkUpdates",
         "title": "Dify for VS Code: Check for Updates"
+      },
+      {
+        "command": "difyForVscode.refreshMcp",
+        "title": "Dify for VS Code: Refresh MCP Servers"
+      },
+      {
+        "command": "difyForVscode.showMcpStatus",
+        "title": "Dify for VS Code: Show MCP Status"
+      },
+      {
+        "command": "difyForVscode.startMcpServer",
+        "title": "Dify for VS Code: Start MCP Bridge Server"
+      },
+      {
+        "command": "difyForVscode.stopMcpServer",
+        "title": "Dify for VS Code: Stop MCP Bridge Server"
+      },
+      {
+        "command": "difyForVscode.copyMcpBridgeConfig",
+        "title": "Dify for VS Code: Copy MCP Bridge Client Config"
+      },
+      {
+        "command": "difyForVscode.configureEmbeddings",
+        "title": "Dify for VS Code: Configure Semantic Embeddings"
+      },
+      {
+        "command": "difyForVscode.buildSemanticIndex",
+        "title": "Dify for VS Code: Build Semantic Workspace Index"
+      },
+      {
+        "command": "difyForVscode.semanticIndexStatus",
+        "title": "Dify for VS Code: Semantic Index Status"
       }
     ],
     "viewsContainers": {
@@ -62,7 +116,7 @@
         {
           "type": "webview",
           "id": "difyForVscode.chatView",
-          "name": "Dify Agent"
+          "name": "Dify Agent Platform"
         }
       ]
     },
@@ -96,32 +150,127 @@
         "difyForVscode.yoloMode": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically execute mutating tools and shell commands without confirmation."
+          "description": "Automatically approve mutating local tools, browser actions, shell commands and potentially mutating MCP tools."
         },
         "difyForVscode.maxAgentSteps": {
           "type": "number",
-          "default": 30,
+          "default": 40,
           "minimum": 1,
           "maximum": 100,
-          "description": "Maximum Dify/tool loop steps for one user request."
+          "description": "Maximum Dify/tool loop steps for one top-level request."
         },
         "difyForVscode.commandTimeoutMs": {
           "type": "number",
           "default": 120000,
           "minimum": 1000,
           "maximum": 600000,
-          "description": "Timeout for run_command and patch/git tools in milliseconds."
+          "description": "Timeout for shell/patch/git tools."
         },
         "difyForVscode.checkUpdatesOnStartup": {
           "type": "boolean",
           "default": true,
-          "description": "Check the latest GitHub Release shortly after the extension starts."
+          "description": "Check GitHub Releases after extension startup."
+        },
+        "difyForVscode.browserChannel": {
+          "type": "string",
+          "enum": ["auto", "chrome", "msedge", "chromium"],
+          "default": "auto",
+          "description": "Browser channel used by Playwright Core. Auto tries installed Edge/Chrome first."
+        },
+        "difyForVscode.browserExecutablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional explicit Chrome/Edge/Chromium executable path."
+        },
+        "difyForVscode.browserHeadless": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run browser automation headlessly."
+        },
+        "difyForVscode.browserIgnoreHTTPSErrors": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ignore HTTPS certificate errors in the managed browser context."
+        },
+        "difyForVscode.mcpServers": {
+          "type": "object",
+          "default": {},
+          "description": "MCP server map. Each entry supports enabled, transport (stdio/http/sse), command/args/env or url/headers, plus timeout fields. Header/env strings support ${env:NAME}."
+        },
+        "difyForVscode.mcpBridgeEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start the local VS Code MCP bridge server."
+        },
+        "difyForVscode.mcpBridgePort": {
+          "type": "number",
+          "default": 8765,
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "Local MCP bridge port (127.0.0.1 only)."
+        },
+        "difyForVscode.mcpBridgeRequireToken": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require a generated bearer token for the local MCP bridge."
+        },
+        "difyForVscode.semanticEmbeddingBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI-compatible embeddings base URL, e.g. http://127.0.0.1:11434/v1. Empty uses local code-aware hash vectors."
+        },
+        "difyForVscode.semanticEmbeddingModel": {
+          "type": "string",
+          "default": "",
+          "description": "Embedding model name, e.g. nomic-embed-text or text-embedding-3-small."
+        },
+        "difyForVscode.semanticIndexMaxFiles": {
+          "type": "number",
+          "default": 2500,
+          "minimum": 1,
+          "maximum": 10000,
+          "description": "Maximum files indexed in a semantic index build."
+        },
+        "difyForVscode.semanticChunkChars": {
+          "type": "number",
+          "default": 3500,
+          "minimum": 800,
+          "maximum": 12000,
+          "description": "Approximate characters per semantic chunk."
+        },
+        "difyForVscode.semanticChunkOverlapChars": {
+          "type": "number",
+          "default": 500,
+          "minimum": 0,
+          "maximum": 3000,
+          "description": "Approximate character overlap between semantic chunks."
+        },
+        "difyForVscode.crewTaskMaxSteps": {
+          "type": "number",
+          "default": 14,
+          "minimum": 1,
+          "maximum": 40,
+          "description": "Default maximum steps for each Crew sub-agent task."
+        },
+        "difyForVscode.crewMaxParallelTasks": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Maximum concurrently executing async Crew tasks. Mutating tool calls are serialized."
         }
       }
     }
   },
   "scripts": {
-    "package": "vsce package"
+    "package": "vsce package",
+    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "playwright-core": "^1.62.1"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0"
