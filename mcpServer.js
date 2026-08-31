@@ -1,5 +1,6 @@
 const http = require('http');
 const crypto = require('crypto');
+const { version: PACKAGE_VERSION } = require('./package.json');
 
 let httpServer;
 let runtime={};
@@ -23,7 +24,7 @@ async function startMcpServer(context,config){
   ]);
 
   const factory=()=>{
-    const s=new McpServer({name:'dify-for-vscode',version:'0.3.0'},{capabilities:{tools:{}}});
+    const s=new McpServer({name:'dify-for-vscode',version:PACKAGE_VERSION},{capabilities:{tools:{}}});
     s.server.setRequestHandler('tools/list',async()=>({
       tools:(await runtime.getTools())
         .filter(t=>!String(t.function?.name||'').startsWith('mcp__'))

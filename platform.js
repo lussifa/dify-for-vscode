@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const { BROWSER_TOOLS, BROWSER_MUTATING, executeBrowserTool, closeBrowser } = require('./browser');
 const { SEMANTIC_TOOLS, SEMANTIC_MUTATING, initializeSemantic, executeSemanticTool } = require('./semantic');
 const { CREW_TOOLS, initializeCrew, executeCrewTool } = require('./crew');
+const { OFFICE_TOOLS, OFFICE_MUTATING, isOfficeTool, executeOfficeTool } = require('./office');
 const { MCP_STATIC_TOOLS, getMcpTools, isMcpTool, isMcpMutating, executeMcpTool, refreshMcp, closeMcp, listMcpServers } = require('./mcp');
 const { initializeMcpServer, startMcpServer, stopMcpServer, statusMcpServer, getMcpBridgeConfig } = require('./mcpServer');
 
@@ -30,14 +31,15 @@ async function getPlatformTools(config){
     console.warn('[Dify for VS Code] MCP discovery failed',error);
     return MCP_STATIC_TOOLS;
   });
-  return [...BROWSER_TOOLS,...SEMANTIC_TOOLS,...CREW_TOOLS,...mcp];
+  return [...BROWSER_TOOLS,...SEMANTIC_TOOLS,...CREW_TOOLS,...OFFICE_TOOLS,...mcp];
 }
-function isPlatformTool(name){return browserNames.has(name)||semanticNames.has(name)||crewNames.has(name)||isMcpTool(name);}
-function isPlatformMutating(name){return BROWSER_MUTATING.has(name)||SEMANTIC_MUTATING.has(name)||isMcpMutating(name);}
+function isPlatformTool(name){return browserNames.has(name)||semanticNames.has(name)||crewNames.has(name)||isOfficeTool(name)||isMcpTool(name);}
+function isPlatformMutating(name){return BROWSER_MUTATING.has(name)||SEMANTIC_MUTATING.has(name)||OFFICE_MUTATING.has(name)||isMcpMutating(name);}
 async function executePlatformTool(name,args,config){
   if(browserNames.has(name))return executeBrowserTool(name,args,config);
   if(semanticNames.has(name))return executeSemanticTool(name,args,config);
   if(crewNames.has(name))return executeCrewTool(name,args,config);
+  if(isOfficeTool(name))return executeOfficeTool(name,args,config);
   if(isMcpTool(name))return executeMcpTool(name,args,config);
   return {success:false,error:`Unknown platform tool: ${name}`};
 }
