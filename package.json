@@ -5,6 +5,14 @@
   "version": "0.1.1",
   "publisher": "lussifa",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lussifa/dify-for-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lussifa/dify-for-vscode/issues"
+  },
+  "homepage": "https://github.com/lussifa/dify-for-vscode#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
