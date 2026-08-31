@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+- Add sub-agent execution-budget hints so agents know when they must finish
+- Detect and block repeated identical tool calls inside Crew sub-agents
+- Force a final tool-free summary when a sub-agent reaches its step budget
+- Return partial sub-agent results instead of failing the entire Crew on max-step exhaustion
+- Add bounded reviewer FAIL -> implementation fix -> reviewer recheck cycles
+- Add `difyForVscode.crewMaxReviewCycles` setting (default 2)
+- Preserve failed/partial task status and warnings for manager synthesis instead of hiding incomplete work
+- Add active Send-button spinner, `Working` label, running status pulse, and proper reset on completion/error/new chat
+- Align the top-level runtime fallback with the configured 40-step default
+
 ## 0.3.0
 
 - Upgrade from single coding agent to an agent-platform architecture
