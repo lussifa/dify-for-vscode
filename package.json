@@ -1,8 +1,8 @@
 {
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
-  "description": "A Dify-powered VS Code agent platform with workspace tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.3.1",
+  "description": "A Dify-powered VS Code agent platform with coding tools, Office document generation, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
+  "version": "0.3.2",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,7 @@
     "vscode": "^1.90.0"
   },
   "categories": ["AI", "Other"],
-  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
+  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
@@ -82,7 +82,7 @@
         "difyForVscode.yoloMode": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically approve mutating local tools, browser actions, shell commands and potentially mutating MCP tools."
+          "description": "Automatically approve mutating local tools, browser actions, shell commands, Office writes and potentially mutating MCP tools."
         },
         "difyForVscode.maxAgentSteps": {
           "type": "number",
@@ -203,13 +203,17 @@
   },
   "scripts": {
     "package": "vsce package",
-    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js"
+    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check officeCommon.js && node --check officePpt.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@modelcontextprotocol/node": "^2.0.0",
-    "playwright-core": "^1.62.1"
+    "playwright-core": "^1.62.1",
+    "pptxgenjs": "^4.0.1",
+    "exceljs": "^4.4.0",
+    "docx": "^9.7.1",
+    "mammoth": "^1.12.1"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0"
