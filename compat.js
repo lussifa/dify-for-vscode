@@ -43,6 +43,7 @@ function stripReasoningBlocks(text) {
   return String(text || '')
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/<analysis>[\s\S]*?<\/analysis>/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
     .trim();
 }
 
@@ -58,6 +59,9 @@ function extractJsonObject(text) {
     // Fall through and scan for a balanced JSON object in mixed model output.
   }
 
+  // Prefer the last valid top-level JSON object. Reasoning models sometimes emit
+  // prose or scratch data before the final protocol object.
+  const matches = [];
   for (let start = source.indexOf('{'); start !== -1; start = source.indexOf('{', start + 1)) {
     let depth = 0;
     let inString = false;
@@ -86,20 +90,31 @@ function extractJsonObject(text) {
         if (depth === 0) {
           const candidate = source.slice(start, i + 1);
           try {
-            return JSON.parse(candidate);
+            matches.push(JSON.parse(candidate));
           } catch {
-            break;
+            // Not a complete protocol object; keep scanning.
           }
+          break;
         }
       }
     }
   }
 
-  return null;
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const candidate = matches[i];
+    if (candidate && (candidate.type === 'message' || candidate.type === 'tool_calls' || candidate.type === 'tool_call')) {
+      return candidate;
+    }
+  }
+
+  return matches.length ? matches[matches.length - 1] : null;
 }
 
 function toLegacyAnswer(answer) {
-  if (typeof answer !== 'string') return answer;
+  if (typeof answer !== 'string') {
+    if (answer && typeof answer === 'object') answer = JSON.stringify(answer);
+    else return answer;
+  }
 
   const parsed = extractJsonObject(answer);
   if (!parsed || typeof parsed !== 'object') {
@@ -119,12 +134,34 @@ function toLegacyAnswer(answer) {
     return JSON.stringify(translated);
   }
 
-  // Preserve structured final-message responses while removing any model reasoning prefix/suffix.
-  if (parsed.type === 'message') {
-    return JSON.stringify(parsed);
+  if (parsed.type === 'tool_call') {
+    const call = parsed.function ? parsed : {
+      id: parsed.id,
+      type: 'function',
+      function: {
+        name: parsed.name,
+        arguments: typeof parsed.arguments === 'string' ? parsed.arguments : JSON.stringify(parsed.arguments || {})
+      }
+    };
+    return JSON.stringify({
+      type: 'tool_calls',
+      content: '',
+      tool_calls: [{
+        id: call.id,
+        name: call.function && call.function.name,
+        arguments: call.function && call.function.arguments
+      }]
+    });
   }
 
-  return JSON.stringify(parsed);
+  // For final messages return only the user-visible content. This deliberately
+  // prevents <think> blocks or protocol JSON from reaching the chat UI even if
+  // the core parser is bypassed or a model emits mixed reasoning + JSON.
+  if (parsed.type === 'message') {
+    return stripReasoningBlocks(String(parsed.content || ''));
+  }
+
+  return stripReasoningBlocks(answer);
 }
 
 globalThis.fetch = async function difyCompatibleFetch(input, init = {}) {
