@@ -1,65 +1,61 @@
 # Dify Chatflow setup
 
-Create a **Chatflow** with two Start input variables:
+This repository is aligned to the user's real `coding agent1` Chatflow contract.
 
-- `messages` — Paragraph, required
-- `tools` — Paragraph, required
+## Required Start variables
 
-Use one LLM node. Its system prompt can be:
+- `messages_json` — text input, required. Complete OpenAI-compatible messages array serialized as JSON.
+- `tools_json` — text input. OpenAI tools array serialized as JSON.
+- `tool_choice_json` — text input. The extension currently sends `"auto"` as a JSON string.
+- `retry_feedback` — text input. Currently sent as an empty string.
 
-```text
-You are the reasoning engine for a VS Code coding agent.
+The VS Code extension sends the Dify App API request in this shape:
 
-You receive two variables:
-1. messages: the complete agent conversation as JSON. It includes user requests,
-   previous assistant tool calls, and tool results.
-2. tools: the exact tools currently available in VS Code, including JSON schemas.
+```json
+{
+  "inputs": {
+    "messages_json": "<complete OpenAI messages JSON>",
+    "tools_json": "<OpenAI tools JSON>",
+    "tool_choice_json": "\"auto\"",
+    "retry_feedback": ""
+  },
+  "query": "<current user/continuation query>",
+  "response_mode": "blocking",
+  "user": "vscode-agent"
+}
+```
 
-Your job is to decide the next step.
+## Output contract
 
-If a tool is needed, return JSON ONLY in this exact shape:
+The Answer node returns the LLM text verbatim. The LLM must return exactly one JSON object with:
+
+```json
+{
+  "type": "message",
+  "content": "assistant response",
+  "tool_calls": []
+}
+```
+
+or OpenAI-compatible tool calls:
+
+```json
 {
   "type": "tool_calls",
+  "content": "",
   "tool_calls": [
     {
-      "id": "call_unique_id",
-      "name": "exact_tool_name_from_tools",
-      "arguments": {"argument": "value"}
+      "id": "call_001",
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "arguments": "{\"path\":\"src/main.ts\"}"
+      }
     }
   ]
 }
-
-You may request multiple independent tools in one response.
-Never invent a tool name. Arguments must conform to the tool schema exactly.
-
-If no tool is needed and you can answer or the task is complete, return JSON ONLY:
-{
-  "type": "message",
-  "content": "your answer to the user"
-}
-
-Rules:
-- Read relevant files before editing them.
-- Prefer replace_text for small edits and write_file for new files or complete rewrites.
-- Use get_diagnostics after meaningful code changes when useful.
-- Use run_command for builds/tests when useful.
-- Treat tool results in messages as authoritative.
-- Do not put the JSON inside Markdown fences.
-- Do not output any text outside the single JSON object.
-
-MESSAGES:
-{{#messages#}}
-
-TOOLS:
-{{#tools#}}
 ```
 
-Connect the LLM node directly to an Answer node and return the LLM output verbatim.
+`function.arguments` is a JSON string, not an object.
 
-The extension calls the Dify App API at:
-
-```text
-POST /v1/chat-messages
-```
-
-It uses `response_mode: blocking` so tool-loop parsing is deterministic in v0.1.
+The compatibility layer in `compat.js` translates between this Chatflow contract and the stable extension runtime. It also normalizes older stored assistant tool-call history into OpenAI-compatible `tool_calls` before each Dify request.
