@@ -3,6 +3,8 @@ name: Build and Release VSIX
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +31,16 @@ jobs:
           import * as server from '@modelcontextprotocol/server';
           import * as nodeAdapter from '@modelcontextprotocol/node';
           import { chromium } from 'playwright-core';
+          import { createRequire } from 'node:module';
+          import fs from 'node:fs/promises';
+          import os from 'node:os';
+          import path from 'node:path';
+
+          const require = createRequire(import.meta.url);
+          const PptxGenJS = require('pptxgenjs');
+          const ExcelJS = require('exceljs');
+          const docx = require('docx');
+          const mammoth = require('mammoth');
           const missing = [];
           if (!client.Client) missing.push('@modelcontextprotocol/client.Client');
           if (!client.StreamableHTTPClientTransport) missing.push('@modelcontextprotocol/client.StreamableHTTPClientTransport');
@@ -36,11 +48,44 @@ jobs:
           if (!server.createMcpHandler) missing.push('@modelcontextprotocol/server.createMcpHandler');
           if (!nodeAdapter.toNodeHandler) missing.push('@modelcontextprotocol/node.toNodeHandler');
           if (!chromium) missing.push('playwright-core.chromium');
+          if (!PptxGenJS) missing.push('pptxgenjs');
+          if (!ExcelJS.Workbook) missing.push('exceljs.Workbook');
+          if (!docx.Document || !docx.Packer) missing.push('docx.Document/Packer');
+          if (!mammoth.extractRawText) missing.push('mammoth.extractRawText');
           if (missing.length) {
             console.error('Missing runtime exports:', missing.join(', '));
             process.exit(1);
           }
-          console.log('Runtime dependency exports validated.');
+
+          const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'dify-office-smoke-'));
+
+          const pptPath = path.join(tmp, 'smoke.pptx');
+          const ppt = new PptxGenJS();
+          ppt.layout = 'LAYOUT_WIDE';
+          ppt.addSlide().addText('Office smoke test', { x: 1, y: 1, w: 5, h: 1 });
+          await ppt.writeFile({ fileName: pptPath });
+
+          const xlsxPath = path.join(tmp, 'smoke.xlsx');
+          const workbook = new ExcelJS.Workbook();
+          const ws = workbook.addWorksheet('Data');
+          ws.addRow(['Name', 'Value']);
+          ws.addRow(['Smoke', 1]);
+          await workbook.xlsx.writeFile(xlsxPath);
+          const reread = new ExcelJS.Workbook();
+          await reread.xlsx.readFile(xlsxPath);
+          if (reread.getWorksheet('Data').getCell('B2').value !== 1) throw new Error('Excel round-trip smoke test failed.');
+
+          const docxPath = path.join(tmp, 'smoke.docx');
+          const document = new docx.Document({ sections: [{ children: [new docx.Paragraph({ children: [new docx.TextRun('Office smoke test')] })] }] });
+          await fs.writeFile(docxPath, await docx.Packer.toBuffer(document));
+          const raw = await mammoth.extractRawText({ path: docxPath });
+          if (!String(raw.value || '').includes('Office smoke test')) throw new Error('Word round-trip smoke test failed.');
+
+          for (const file of [pptPath, xlsxPath, docxPath]) {
+            const stat = await fs.stat(file);
+            if (!stat.size) throw new Error(`Generated Office file is empty: ${file}`);
+          }
+          console.log('Runtime dependency exports and Office generation smoke tests validated.');
           NODE
 
       - name: Read version
@@ -62,6 +107,7 @@ jobs:
           path: "${{ steps.version.outputs.vsix }}"
 
       - name: Create GitHub Release if missing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
