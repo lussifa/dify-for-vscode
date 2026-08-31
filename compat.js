@@ -39,36 +39,92 @@ function toOpenAiHistory(messages) {
   });
 }
 
+function stripReasoningBlocks(text) {
+  return String(text || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<analysis>[\s\S]*?<\/analysis>/gi, '')
+    .trim();
+}
+
+function extractJsonObject(text) {
+  const source = stripReasoningBlocks(text)
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(source);
+  } catch {
+    // Fall through and scan for a balanced JSON object in mixed model output.
+  }
+
+  for (let start = source.indexOf('{'); start !== -1; start = source.indexOf('{', start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < source.length; i += 1) {
+      const ch = source[i];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === '{') {
+        depth += 1;
+      } else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          const candidate = source.slice(start, i + 1);
+          try {
+            return JSON.parse(candidate);
+          } catch {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 function toLegacyAnswer(answer) {
   if (typeof answer !== 'string') return answer;
 
-  let text = answer.trim();
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  const parsed = extractJsonObject(answer);
+  if (!parsed || typeof parsed !== 'object') {
+    return stripReasoningBlocks(answer);
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return answer;
+  if (parsed.type === 'tool_calls' && Array.isArray(parsed.tool_calls)) {
+    const translated = {
+      type: 'tool_calls',
+      content: typeof parsed.content === 'string' ? parsed.content : '',
+      tool_calls: parsed.tool_calls.map(call => ({
+        id: call && call.id,
+        name: call && call.function ? call.function.name : call && call.name,
+        arguments: call && call.function ? call.function.arguments : call && call.arguments
+      }))
+    };
+    return JSON.stringify(translated);
   }
 
-  if (!parsed || parsed.type !== 'tool_calls' || !Array.isArray(parsed.tool_calls)) {
-    return answer;
+  // Preserve structured final-message responses while removing any model reasoning prefix/suffix.
+  if (parsed.type === 'message') {
+    return JSON.stringify(parsed);
   }
 
-  const translated = {
-    type: 'tool_calls',
-    content: typeof parsed.content === 'string' ? parsed.content : '',
-    tool_calls: parsed.tool_calls.map(call => ({
-      id: call && call.id,
-      name: call && call.function ? call.function.name : call && call.name,
-      arguments: call && call.function ? call.function.arguments : call && call.arguments
-    }))
-  };
-
-  return JSON.stringify(translated);
+  return JSON.stringify(parsed);
 }
 
 globalThis.fetch = async function difyCompatibleFetch(input, init = {}) {
