@@ -15,13 +15,15 @@ async function runSubAgent({ agent, task, contextText = '', allowedTools = null,
   if (!apiKey) throw new Error('Dify API key is not configured.');
   const config = vscode.workspace.getConfiguration('difyForVscode');
   const tools = filterTools(await runtime.getAllTools(), allowedTools).filter(t => t.function?.name !== 'run_crew');
+  const reviewer = /review|qa|test/i.test(`${agent.id || ''} ${agent.role || ''}`);
   const system = [
-    `You are a specialist agent inside a coordinated crew.`,
+    'You are a specialist agent inside a coordinated crew.',
     `Role: ${agent.role}`,
     `Goal: ${agent.goal}`,
     agent.backstory ? `Backstory: ${agent.backstory}` : '',
-    `You must complete only the assigned task. Use tools when needed. Do not invent tool results.`,
-    `Return protocol JSON only: either {"type":"tool_calls",...} or {"type":"message","content":"...","tool_calls":[]}.`
+    'You must complete only the assigned task. Use tools when needed. Do not invent tool results.',
+    reviewer ? 'Reviewer rule: inspect and verify, then return a clear PASS or FAIL with findings. Do not keep re-checking evidence you already have. Do not modify implementation unless the assigned task explicitly asks you to fix it.' : '',
+    'Return protocol JSON only: either {"type":"tool_calls",...} or {"type":"message","content":"...","tool_calls":[]}.'
   ].filter(Boolean).join('\n');
   const user = [
     `Task: ${task.description}`,
@@ -31,21 +33,85 @@ async function runSubAgent({ agent, task, contextText = '', allowedTools = null,
   const history = [{ role: 'system', content: system }, { role: 'user', content: user }];
   let query = user;
   const limit = Math.max(1, Math.min(40, Number(maxSteps || 14)));
+  const callCounts = new Map();
+  const observations = [];
+  let repeatedCalls = 0;
 
   for (let step = 1; step <= limit; step += 1) {
-    runtime.onEvent?.({ type: 'subagent_step', agent: agent.id, role: agent.role, task: task.id, step, mode });
-    const decision = await callDify(query, apiKey, history, tools, `${config.get('userId', 'vscode-agent')}:crew:${agent.id}`);
-    if (decision.type === 'message') return { content: String(decision.content || ''), steps: step };
+    const remaining = limit - step;
+    runtime.onEvent?.({ type: 'subagent_step', agent: agent.id, role: agent.role, task: task.id, step, remaining, mode });
+    const budgetHint = remaining <= 1
+      ? `Execution budget is almost exhausted (${remaining} tool step${remaining === 1 ? '' : 's'} remaining). Do not call another tool unless absolutely necessary. Return your best final result now.`
+      : remaining <= 4
+        ? `You have ${remaining} execution steps remaining. Prioritize only missing evidence, do not repeat completed checks, and finish as soon as the expected output is satisfied.`
+        : `You have ${remaining} execution steps remaining.`;
+    const decision = await callDify(`${query}\n\n${budgetHint}`, apiKey, history, tools, `${config.get('userId', 'vscode-agent')}:crew:${agent.id}`);
+    if (decision.type === 'message') {
+      return { content: String(decision.content || ''), steps: step, status: 'completed', partial: false, observations };
+    }
     const calls = normalizeCalls(decision);
     if (!calls.length) throw new Error(`Sub-agent ${agent.id} returned neither a message nor valid tool calls.`);
     history.push({ role: 'assistant', content: null, tool_calls: calls });
+
     for (const call of calls) {
-      const result = await executeToolWithApproval(call, { source: 'crew', agent: agent.id, role: agent.role, task: task.id });
+      const signature = toolSignature(call);
+      const count = (callCounts.get(signature) || 0) + 1;
+      callCounts.set(signature, count);
+      let result;
+      if (count >= 2) {
+        repeatedCalls += 1;
+        result = {
+          success: false,
+          repeated: true,
+          repeat_count: count,
+          error: 'This exact tool call was already executed. Reuse the previous result and move toward a final answer instead of repeating it.'
+        };
+      } else {
+        result = await executeToolWithApproval(call, { source: 'crew', agent: agent.id, role: agent.role, task: task.id });
+        observations.push({ tool: call.name, arguments: call.arguments, result: summarizeResult(result) });
+        if (observations.length > 20) observations.shift();
+      }
       history.push({ role: 'tool', tool_call_id: call.id, name: call.name, content: JSON.stringify(result) });
     }
-    query = 'Continue the assigned task using the latest tool results. Finish when the expected output is satisfied.';
+
+    if (repeatedCalls >= 3) {
+      query = 'You are repeating tool calls. Stop using tools now. Use the evidence already present in the conversation and return the required final answer immediately.';
+    } else if (remaining <= 2) {
+      query = 'Use the latest tool results and finalize now. Do not repeat checks. Return the expected output as a final message unless one indispensable check remains.';
+    } else {
+      query = 'Continue the assigned task using the latest tool results. Do not repeat identical tool calls. Finish when the expected output is satisfied.';
+    }
   }
-  throw new Error(`Sub-agent ${agent.id} exceeded ${limit} steps.`);
+
+  // A sub-agent exhausting its tool budget should not crash the entire crew.
+  // Give it one tool-free chance to summarize the evidence already collected.
+  try {
+    const finalDecision = await callDify(
+      'The execution-step budget is exhausted. No more tools are available. Produce the best possible final result now from the existing conversation and tool evidence. Clearly mark uncertainty or incomplete verification.',
+      apiKey,
+      history,
+      [],
+      `${config.get('userId', 'vscode-agent')}:crew:${agent.id}:finalize`
+    );
+    if (finalDecision.type === 'message' && String(finalDecision.content || '').trim()) {
+      return {
+        content: String(finalDecision.content || ''),
+        steps: limit,
+        status: 'max_steps_reached',
+        partial: true,
+        observations
+      };
+    }
+  } catch {}
+
+  const evidence = observations.slice(-8).map((o, i) => `${i + 1}. ${o.tool}: ${JSON.stringify(o.result)}`).join('\n');
+  return {
+    content: `Partial result: sub-agent ${agent.id} reached its ${limit}-step budget before producing a formal final response.${evidence ? `\n\nRecent evidence:\n${evidence}` : ''}`,
+    steps: limit,
+    status: 'max_steps_reached',
+    partial: true,
+    observations
+  };
 }
 
 async function executeToolWithApproval(call, meta = {}) {
@@ -101,6 +167,20 @@ function filterTools(tools, patterns) {
   return tools.filter(t => toolAllowed(String(t.function?.name || ''), patterns.map(String)));
 }
 function toolAllowed(name, patterns) { return patterns.some(p => p === '*' || p === name || (p.endsWith('*') && name.startsWith(p.slice(0, -1)))); }
+function toolSignature(call) { return `${call.name}:${stableStringify(call.arguments || {})}`; }
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+function summarizeResult(result) {
+  if (!result || typeof result !== 'object') return result;
+  const copy = { ...result };
+  for (const key of ['content', 'stdout', 'stderr', 'text']) {
+    if (typeof copy[key] === 'string' && copy[key].length > 1600) copy[key] = `${copy[key].slice(0, 1600)}...`;
+  }
+  return copy;
+}
 function normalizeCalls(decision) {
   if (!decision || !['tool_calls', 'tool_call'].includes(decision.type)) return [];
   const raw = decision.type === 'tool_call' ? [decision] : (Array.isArray(decision.tool_calls) ? decision.tool_calls : []);
