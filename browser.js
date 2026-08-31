@@ -14,7 +14,7 @@ const BROWSER_TOOLS = [
   fn('browser_close', 'Close the managed browser session.', obj({}))
 ];
 
-const BROWSER_MUTATING = new Set(['browser_open','browser_click','browser_fill','browser_press','browser_select','browser_evaluate']);
+const BROWSER_MUTATING = new Set(['browser_open','browser_click','browser_fill','browser_press','browser_select','browser_evaluate','browser_screenshot']);
 
 let browser;
 let context;
