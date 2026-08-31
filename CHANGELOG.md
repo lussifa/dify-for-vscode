@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.2
+
+- Add native Office subsystem to the existing Dify agent platform
+- Add declarative PowerPoint generation with built-in themes and title/section/bullets/two-column/table/chart/quote/blank slide layouts
+- Add PowerPoint chart support for bar, column, line, pie and doughnut charts
+- Add `ppt_create`, `ppt_update` and `ppt_inspect`
+- Persist editable `.pptx.dify.json` sidecars so Agent-generated presentations can be rebuilt and updated reliably
+- Add Excel workbook creation with multiple sheets, styled headers, freeze panes, filters, widths, number formats, formulas, hyperlinks and dates
+- Add `excel_create`, `excel_inspect`, `excel_write_range`, `excel_append_rows` and `excel_format_range`
+- Add declarative Word generation with headings, paragraphs, bullets, numbered lists, tables, quotes and page breaks
+- Add `word_create`, `word_update` and `word_inspect`; arbitrary DOCX files can be text-inspected with Mammoth
+- Persist editable `.docx.dify.json` sidecars for reliable structured updates to Agent-generated Word documents
+- Add `office_render_pdf` with LibreOffice-first rendering and Microsoft Office COM fallback on Windows
+- Make Office tools available to top-level Dify agents, Crew sub-agents and the local MCP bridge
+- Treat Office writes/rendering as approval-gated mutations unless YOLO is enabled
+- Add PptxGenJS, ExcelJS, docx and Mammoth runtime dependencies
+- Extend CI with real PPTX/XLSX/DOCX generation smoke tests and Excel/Word round-trip validation
+- Add pull-request CI before merging/releasing changes
+- Keep MCP bridge server version synchronized automatically with `package.json`
+- Expand README and Dify agent guidance for Office-native workflows
+
 ## 0.3.1
 
 - Add sub-agent execution-budget hints so agents know when they must finish
