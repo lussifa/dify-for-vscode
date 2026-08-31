@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A native VS Code coding agent powered directly by a Dify Chatflow.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "lussifa",
   "license": "MIT",
   "engines": {
@@ -16,7 +16,7 @@
     "onCommand:difyForVscode.newChat",
     "onCommand:difyForVscode.toggleYolo"
   ],
-  "main": "./extension.js",
+  "main": "./compat.js",
   "icon": "media/icon.png",
   "contributes": {
     "commands": [
