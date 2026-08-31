@@ -1,8 +1,12 @@
 // Compatibility layer for the OpenAI-compatible Dify Chatflow contract.
-// It keeps the stable v0.1 extension runtime intact while translating
+// It keeps the stable extension runtime intact while translating
 // requests/responses to the coding-agent1.yml input/output schema.
 
+const vscode = require('vscode');
+const pkg = require('./package.json');
+const core = require('./extension.js');
 const originalFetch = globalThis.fetch;
+const RELEASE_API = 'https://api.github.com/repos/lussifa/dify-for-vscode/releases/latest';
 
 if (typeof originalFetch !== 'function') {
   throw new Error('Dify for VS Code requires a VS Code runtime with global fetch support.');
@@ -126,4 +130,80 @@ globalThis.fetch = async function difyCompatibleFetch(input, init = {}) {
   });
 };
 
-module.exports = require('./extension.js');
+function versionParts(version) {
+  return String(version || '')
+    .replace(/^v/i, '')
+    .split('-')[0]
+    .split('.')
+    .map(part => Number.parseInt(part, 10) || 0);
+}
+
+function isNewerVersion(candidate, current) {
+  const a = versionParts(candidate);
+  const b = versionParts(current);
+  const length = Math.max(a.length, b.length);
+  for (let i = 0; i < length; i += 1) {
+    const left = a[i] || 0;
+    const right = b[i] || 0;
+    if (left > right) return true;
+    if (left < right) return false;
+  }
+  return false;
+}
+
+async function checkForUpdates(showUpToDate = false) {
+  try {
+    const response = await originalFetch(RELEASE_API, {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': `dify-for-vscode/${pkg.version}`
+      }
+    });
+
+    if (!response.ok) {
+      if (showUpToDate) {
+        vscode.window.showWarningMessage(`Unable to check for updates (GitHub HTTP ${response.status}).`);
+      }
+      return;
+    }
+
+    const release = await response.json();
+    const latest = String(release.tag_name || release.name || '').replace(/^v/i, '');
+    if (!latest) return;
+
+    if (isNewerVersion(latest, pkg.version)) {
+      const action = await vscode.window.showInformationMessage(
+        `Dify for VS Code ${latest} is available. You are using ${pkg.version}.`,
+        'Open Release'
+      );
+      if (action === 'Open Release' && release.html_url) {
+        await vscode.env.openExternal(vscode.Uri.parse(release.html_url));
+      }
+    } else if (showUpToDate) {
+      vscode.window.showInformationMessage(`Dify for VS Code ${pkg.version} is up to date.`);
+    }
+  } catch (error) {
+    if (showUpToDate) {
+      vscode.window.showWarningMessage(`Update check failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+function activate(context) {
+  core.activate(context);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('difyForVscode.checkUpdates', () => checkForUpdates(true))
+  );
+
+  const config = vscode.workspace.getConfiguration('difyForVscode');
+  if (config.get('checkUpdatesOnStartup', true)) {
+    setTimeout(() => checkForUpdates(false), 3000);
+  }
+}
+
+function deactivate() {
+  if (typeof core.deactivate === 'function') core.deactivate();
+}
+
+module.exports = { activate, deactivate };
