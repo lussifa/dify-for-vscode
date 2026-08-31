@@ -27,7 +27,7 @@ Run `Dify for VS Code: Configure`, then enter the Dify `/v1` base URL, App API k
 
 ## Dify Chatflow contract
 
-Version 0.1.1 is aligned with the included Chatflow DSL: [`dify/coding-agent1.yml`](dify/coding-agent1.yml). Import that YAML into Dify for the simplest setup.
+Version 0.1.1 is aligned with the `coding agent1` Chatflow contract used for this project.
 
 The Chatflow Start node expects exactly these inputs:
 
@@ -69,6 +69,8 @@ The extension sends the complete conversation on every request and intentionally
 
 `function.arguments` must be a JSON **string**, matching OpenAI Chat Completions tool-call format.
 
+See [`dify/chatflow-prompt.md`](dify/chatflow-prompt.md) for the exact request/response contract.
+
 ## Built-in tools
 
 - `get_workspace_info`
@@ -88,4 +90,4 @@ Turn on **YOLO** in the sidebar to auto-approve supported file writes and shell 
 
 ## Development
 
-The extension intentionally has no runtime npm dependencies. `extension.js` is the source and runtime entry point.
+The extension intentionally has no runtime npm dependencies. `extension.js` contains the stable runtime, while `compat.js` adapts it to the current Dify Chatflow contract.
