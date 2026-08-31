@@ -21,6 +21,28 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Validate extension and runtime dependencies
+        run: |
+          npm run check
+          node --input-type=module - <<'NODE'
+          import * as client from '@modelcontextprotocol/client';
+          import * as server from '@modelcontextprotocol/server';
+          import * as nodeAdapter from '@modelcontextprotocol/node';
+          import { chromium } from 'playwright-core';
+          const missing = [];
+          if (!client.Client) missing.push('@modelcontextprotocol/client.Client');
+          if (!client.StreamableHTTPClientTransport) missing.push('@modelcontextprotocol/client.StreamableHTTPClientTransport');
+          if (!server.McpServer) missing.push('@modelcontextprotocol/server.McpServer');
+          if (!server.createMcpHandler) missing.push('@modelcontextprotocol/server.createMcpHandler');
+          if (!nodeAdapter.toNodeHandler) missing.push('@modelcontextprotocol/node.toNodeHandler');
+          if (!chromium) missing.push('playwright-core.chromium');
+          if (missing.length) {
+            console.error('Missing runtime exports:', missing.join(', '));
+            process.exit(1);
+          }
+          console.log('Runtime dependency exports validated.');
+          NODE
+
       - name: Read version
         id: version
         shell: bash
@@ -48,7 +70,8 @@ jobs:
         shell: bash
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping release creation."
+            echo "Release $TAG already exists; uploading/replacing the VSIX asset."
+            gh release upload "$TAG" "$VSIX" --clobber
           else
             gh release create "$TAG" "$VSIX" \
               --target "$GITHUB_SHA" \
