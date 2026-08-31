@@ -59,13 +59,14 @@ jobs:
 
           const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'dify-office-smoke-'));
 
-          const pptPath = path.join(tmp, 'smoke.pptx');
+          // Low-level dependency smoke tests.
+          const pptPath = path.join(tmp, 'library-smoke.pptx');
           const ppt = new PptxGenJS();
           ppt.layout = 'LAYOUT_WIDE';
           ppt.addSlide().addText('Office smoke test', { x: 1, y: 1, w: 5, h: 1 });
           await ppt.writeFile({ fileName: pptPath });
 
-          const xlsxPath = path.join(tmp, 'smoke.xlsx');
+          const xlsxPath = path.join(tmp, 'library-smoke.xlsx');
           const workbook = new ExcelJS.Workbook();
           const ws = workbook.addWorksheet('Data');
           ws.addRow(['Name', 'Value']);
@@ -75,17 +76,81 @@ jobs:
           await reread.xlsx.readFile(xlsxPath);
           if (reread.getWorksheet('Data').getCell('B2').value !== 1) throw new Error('Excel round-trip smoke test failed.');
 
-          const docxPath = path.join(tmp, 'smoke.docx');
+          const docxPath = path.join(tmp, 'library-smoke.docx');
           const document = new docx.Document({ sections: [{ children: [new docx.Paragraph({ children: [new docx.TextRun('Office smoke test')] })] }] });
           await fs.writeFile(docxPath, await docx.Packer.toBuffer(document));
           const raw = await mammoth.extractRawText({ path: docxPath });
           if (!String(raw.value || '').includes('Office smoke test')) throw new Error('Word round-trip smoke test failed.');
 
-          for (const file of [pptPath, xlsxPath, docxPath]) {
+          // Exercise our actual Office subsystem with a minimal VS Code workspace mock.
+          const Module = require('node:module');
+          const originalLoad = Module._load;
+          Module._load = function(request, parent, isMain) {
+            if (request === 'vscode') {
+              return {
+                workspace: {
+                  workspaceFolders: [{ uri: { scheme: 'file', fsPath: tmp } }]
+                }
+              };
+            }
+            return originalLoad.call(this, request, parent, isMain);
+          };
+
+          const { executeOfficeTool, OFFICE_TOOLS } = require('./office');
+          if (!Array.isArray(OFFICE_TOOLS) || OFFICE_TOOLS.length !== 12) throw new Error(`Expected 12 Office tools, got ${OFFICE_TOOLS?.length}`);
+
+          const pptCreate = await executeOfficeTool('ppt_create', {
+            output_path: 'native.pptx',
+            title: 'Native Office Smoke',
+            theme: 'corporate-light',
+            slides: [
+              { type: 'title', title: 'Native Office Smoke', subtitle: 'v0.3.2' },
+              { type: 'two_column', title: 'Capabilities', left_title: 'Create', left_bullets: ['PPT', 'Excel'], right_title: 'Review', right_bullets: ['Inspect', 'Update'] },
+              { type: 'table', title: 'Table', table: { headers: ['Item', 'Value'], rows: [['A', '1'], ['B', '2']] } },
+              { type: 'chart', title: 'Chart', chart: { type: 'column', categories: ['A', 'B'], series: [{ name: 'Value', values: [1, 2] }] } }
+            ]
+          });
+          if (!pptCreate.success || pptCreate.slide_count !== 4) throw new Error(`ppt_create failed: ${JSON.stringify(pptCreate)}`);
+          const pptInspect = await executeOfficeTool('ppt_inspect', { path: 'native.pptx' });
+          if (!pptInspect.success || !pptInspect.editable || pptInspect.slide_count !== 4) throw new Error(`ppt_inspect failed: ${JSON.stringify(pptInspect)}`);
+          const pptUpdate = await executeOfficeTool('ppt_update', { path: 'native.pptx', action: 'replace_slide', slide_index: 2, slide: { type: 'bullets', title: 'Updated', bullets: ['one', 'two'] } });
+          if (!pptUpdate.success) throw new Error(`ppt_update failed: ${JSON.stringify(pptUpdate)}`);
+
+          const excelCreate = await executeOfficeTool('excel_create', {
+            output_path: 'native.xlsx',
+            sheets: [{ name: 'Data', headers: ['Name', 'Value'], rows: [['Alpha', 1], ['Beta', { formula: '1+1', result: 2 }]], freeze_header: true, auto_filter: true }]
+          });
+          if (!excelCreate.success) throw new Error(`excel_create failed: ${JSON.stringify(excelCreate)}`);
+          const excelWrite = await executeOfficeTool('excel_write_range', { path: 'native.xlsx', sheet: 'Data', start_cell: 'C1', values: [['Status'], ['OK'], ['OK']] });
+          if (!excelWrite.success) throw new Error(`excel_write_range failed: ${JSON.stringify(excelWrite)}`);
+          const excelAppend = await executeOfficeTool('excel_append_rows', { path: 'native.xlsx', sheet: 'Data', rows: [['Gamma', 3, 'OK']] });
+          if (!excelAppend.success) throw new Error(`excel_append_rows failed: ${JSON.stringify(excelAppend)}`);
+          const excelFormat = await executeOfficeTool('excel_format_range', { path: 'native.xlsx', sheet: 'Data', range: 'A1:C1', style: { bold: true, fill_color: '2563EB', font_color: 'FFFFFF', horizontal: 'center', border: true } });
+          if (!excelFormat.success) throw new Error(`excel_format_range failed: ${JSON.stringify(excelFormat)}`);
+          const excelInspect = await executeOfficeTool('excel_inspect', { path: 'native.xlsx', sheet: 'Data', max_rows: 10, max_cols: 5 });
+          if (!excelInspect.success || excelInspect.selected_sheet !== 'Data' || excelInspect.sample.length < 4) throw new Error(`excel_inspect failed: ${JSON.stringify(excelInspect)}`);
+
+          const wordCreate = await executeOfficeTool('word_create', {
+            output_path: 'native.docx',
+            title: 'Native Word Smoke',
+            blocks: [
+              { type: 'heading', level: 1, text: 'Summary' },
+              { type: 'paragraph', text: 'Office subsystem round-trip test.' },
+              { type: 'bullets', items: ['PPT', 'Excel', 'Word'] },
+              { type: 'table', table: { headers: ['Item', 'Status'], rows: [['Office', 'OK']] } }
+            ]
+          });
+          if (!wordCreate.success) throw new Error(`word_create failed: ${JSON.stringify(wordCreate)}`);
+          const wordUpdate = await executeOfficeTool('word_update', { path: 'native.docx', action: 'append_block', block: { type: 'heading', level: 2, text: 'Next' } });
+          if (!wordUpdate.success) throw new Error(`word_update failed: ${JSON.stringify(wordUpdate)}`);
+          const wordInspect = await executeOfficeTool('word_inspect', { path: 'native.docx', max_chars: 10000 });
+          if (!wordInspect.success || !wordInspect.editable || !String(wordInspect.text).includes('Office subsystem')) throw new Error(`word_inspect failed: ${JSON.stringify(wordInspect)}`);
+
+          for (const file of [pptPath, xlsxPath, docxPath, path.join(tmp, 'native.pptx'), path.join(tmp, 'native.xlsx'), path.join(tmp, 'native.docx')]) {
             const stat = await fs.stat(file);
             if (!stat.size) throw new Error(`Generated Office file is empty: ${file}`);
           }
-          console.log('Runtime dependency exports and Office generation smoke tests validated.');
+          console.log('Runtime dependencies and native Office tool round-trip tests validated.');
           NODE
 
       - name: Read version
