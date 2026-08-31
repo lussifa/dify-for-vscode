@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with workspace tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -16,22 +16,8 @@
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": [
-    "AI",
-    "Other"
-  ],
-  "keywords": [
-    "dify",
-    "chatflow",
-    "ai",
-    "agent",
-    "coding",
-    "mcp",
-    "multi-agent",
-    "crewai",
-    "playwright",
-    "semantic-search"
-  ],
+  "categories": ["AI", "Other"],
+  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
@@ -51,87 +37,33 @@
   "icon": "media/icon.png",
   "contributes": {
     "commands": [
-      {
-        "command": "difyForVscode.configure",
-        "title": "Dify for VS Code: Configure",
-        "icon": "$(gear)"
-      },
-      {
-        "command": "difyForVscode.newChat",
-        "title": "Dify for VS Code: New Chat",
-        "icon": "$(add)"
-      },
-      {
-        "command": "difyForVscode.toggleYolo",
-        "title": "Dify for VS Code: Toggle YOLO Mode"
-      },
-      {
-        "command": "difyForVscode.checkUpdates",
-        "title": "Dify for VS Code: Check for Updates"
-      },
-      {
-        "command": "difyForVscode.refreshMcp",
-        "title": "Dify for VS Code: Refresh MCP Servers"
-      },
-      {
-        "command": "difyForVscode.showMcpStatus",
-        "title": "Dify for VS Code: Show MCP Status"
-      },
-      {
-        "command": "difyForVscode.startMcpServer",
-        "title": "Dify for VS Code: Start MCP Bridge Server"
-      },
-      {
-        "command": "difyForVscode.stopMcpServer",
-        "title": "Dify for VS Code: Stop MCP Bridge Server"
-      },
-      {
-        "command": "difyForVscode.copyMcpBridgeConfig",
-        "title": "Dify for VS Code: Copy MCP Bridge Client Config"
-      },
-      {
-        "command": "difyForVscode.configureEmbeddings",
-        "title": "Dify for VS Code: Configure Semantic Embeddings"
-      },
-      {
-        "command": "difyForVscode.buildSemanticIndex",
-        "title": "Dify for VS Code: Build Semantic Workspace Index"
-      },
-      {
-        "command": "difyForVscode.semanticIndexStatus",
-        "title": "Dify for VS Code: Semantic Index Status"
-      }
+      { "command": "difyForVscode.configure", "title": "Dify for VS Code: Configure", "icon": "$(gear)" },
+      { "command": "difyForVscode.newChat", "title": "Dify for VS Code: New Chat", "icon": "$(add)" },
+      { "command": "difyForVscode.toggleYolo", "title": "Dify for VS Code: Toggle YOLO Mode" },
+      { "command": "difyForVscode.checkUpdates", "title": "Dify for VS Code: Check for Updates" },
+      { "command": "difyForVscode.refreshMcp", "title": "Dify for VS Code: Refresh MCP Servers" },
+      { "command": "difyForVscode.showMcpStatus", "title": "Dify for VS Code: Show MCP Status" },
+      { "command": "difyForVscode.startMcpServer", "title": "Dify for VS Code: Start MCP Bridge Server" },
+      { "command": "difyForVscode.stopMcpServer", "title": "Dify for VS Code: Stop MCP Bridge Server" },
+      { "command": "difyForVscode.copyMcpBridgeConfig", "title": "Dify for VS Code: Copy MCP Bridge Client Config" },
+      { "command": "difyForVscode.configureEmbeddings", "title": "Dify for VS Code: Configure Semantic Embeddings" },
+      { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
+      { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
     ],
     "viewsContainers": {
       "activitybar": [
-        {
-          "id": "difyForVscode",
-          "title": "Dify",
-          "icon": "media/icon.svg"
-        }
+        { "id": "difyForVscode", "title": "Dify", "icon": "media/icon.svg" }
       ]
     },
     "views": {
       "difyForVscode": [
-        {
-          "type": "webview",
-          "id": "difyForVscode.chatView",
-          "name": "Dify Agent Platform"
-        }
+        { "type": "webview", "id": "difyForVscode.chatView", "name": "Dify Agent Platform" }
       ]
     },
     "menus": {
       "view/title": [
-        {
-          "command": "difyForVscode.newChat",
-          "when": "view == difyForVscode.chatView",
-          "group": "navigation@1"
-        },
-        {
-          "command": "difyForVscode.configure",
-          "when": "view == difyForVscode.chatView",
-          "group": "navigation@2"
-        }
+        { "command": "difyForVscode.newChat", "when": "view == difyForVscode.chatView", "group": "navigation@1" },
+        { "command": "difyForVscode.configure", "when": "view == difyForVscode.chatView", "group": "navigation@2" }
       ]
     },
     "configuration": {
@@ -258,6 +190,13 @@
           "minimum": 1,
           "maximum": 8,
           "description": "Maximum concurrently executing async Crew tasks. Mutating tool calls are serialized."
+        },
+        "difyForVscode.crewMaxReviewCycles": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 5,
+          "description": "Maximum automatic implementation fix -> reviewer recheck cycles after a reviewer reports FAIL."
         }
       }
     }
