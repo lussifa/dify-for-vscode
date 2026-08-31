@@ -95,7 +95,9 @@ async function callDify(query, apiKey, history, tools, userId) {
 }
 
 function filterTools(tools, patterns) {
-  if (!Array.isArray(patterns) || !patterns.length) return tools;
+  if (patterns === null || patterns === undefined) return tools;
+  if (!Array.isArray(patterns)) return tools;
+  if (!patterns.length) return [];
   return tools.filter(t => toolAllowed(String(t.function?.name || ''), patterns.map(String)));
 }
 function toolAllowed(name, patterns) { return patterns.some(p => p === '*' || p === name || (p.endsWith('*') && name.startsWith(p.slice(0, -1)))); }
