@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A native VS Code coding agent powered directly by a Dify Chatflow.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,8 @@
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
     "onCommand:difyForVscode.newChat",
-    "onCommand:difyForVscode.toggleYolo"
+    "onCommand:difyForVscode.toggleYolo",
+    "onCommand:difyForVscode.checkUpdates"
   ],
   "main": "./compat.js",
   "icon": "media/icon.png",
@@ -39,6 +40,10 @@
       {
         "command": "difyForVscode.toggleYolo",
         "title": "Dify for VS Code: Toggle YOLO Mode"
+      },
+      {
+        "command": "difyForVscode.checkUpdates",
+        "title": "Dify for VS Code: Check for Updates"
       }
     ],
     "viewsContainers": {
@@ -104,6 +109,11 @@
           "minimum": 1000,
           "maximum": 600000,
           "description": "Timeout for run_command in milliseconds."
+        },
+        "difyForVscode.checkUpdatesOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check the latest GitHub Release shortly after the extension starts."
         }
       }
     }
