@@ -57,6 +57,36 @@ jobs:
             process.exit(1);
           }
 
+          // Context Manager: preserve the current task/tool cycle while compacting older tasks.
+          const context = require('./contextManager');
+          const huge = 'x'.repeat(30000);
+          const history = [
+            { role: 'user', content: 'Task one: organize files' },
+            { role: 'assistant', content: null, tool_calls: [{ id: 'call_old', name: 'list_files', arguments: {} }] },
+            { role: 'tool', tool_call_id: 'call_old', name: 'list_files', content: huge },
+            { role: 'assistant', content: 'Task one completed. Generated reports/manifest.xlsx.' },
+            { role: 'user', content: 'Task two: inspect the workbook' },
+            { role: 'assistant', content: null, tool_calls: [{ id: 'call_mid', name: 'excel_inspect', arguments: { path: 'reports/manifest.xlsx' } }] },
+            { role: 'tool', tool_call_id: 'call_mid', name: 'excel_inspect', content: huge },
+            { role: 'assistant', content: 'Workbook inspection completed.' },
+            { role: 'user', content: 'Task three: build a presentation from it' },
+            { role: 'assistant', content: null, tool_calls: [{ id: 'call_now', name: 'ppt_create', arguments: { output_path: 'reports/deck.pptx' } }] },
+            { role: 'tool', tool_call_id: 'call_now', name: 'ppt_create', content: huge }
+          ];
+          const prepared = context.prepareContext(history, {
+            enabled: true,
+            recentTasks: 2,
+            maxChars: 20000,
+            toolResultMaxChars: 1200,
+            storedToolResultMaxChars: 1000,
+            summaryMaxChars: 3000
+          });
+          if (!(prepared.stats.outboundChars < prepared.stats.originalChars)) throw new Error('Context Manager did not reduce outbound context.');
+          if (!prepared.messages.some(m => m.role === 'system' && String(m.content).includes('previous task summaries'))) throw new Error('Context Manager did not summarize the oldest task.');
+          if (!prepared.messages.some(m => m.role === 'user' && String(m.content).includes('Task three'))) throw new Error('Context Manager lost the current user task.');
+          if (!prepared.messages.some(m => m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.some(c => c.id === 'call_now'))) throw new Error('Context Manager lost the current tool call.');
+          if (!prepared.messages.some(m => m.role === 'tool' && m.tool_call_id === 'call_now')) throw new Error('Context Manager lost the current tool result.');
+
           const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'dify-office-smoke-'));
 
           // Low-level dependency smoke tests.
@@ -87,34 +117,38 @@ jobs:
           const originalLoad = Module._load;
           Module._load = function(request, parent, isMain) {
             if (request === 'vscode') {
-              return {
-                workspace: {
-                  workspaceFolders: [{ uri: { scheme: 'file', fsPath: tmp } }]
-                }
-              };
+              return { workspace: { workspaceFolders: [{ uri: { scheme: 'file', fsPath: tmp } }] } };
             }
             return originalLoad.call(this, request, parent, isMain);
           };
 
           const { executeOfficeTool, OFFICE_TOOLS } = require('./office');
-          if (!Array.isArray(OFFICE_TOOLS) || OFFICE_TOOLS.length !== 12) throw new Error(`Expected 12 Office tools, got ${OFFICE_TOOLS?.length}`);
+          if (!Array.isArray(OFFICE_TOOLS) || OFFICE_TOOLS.length !== 13) throw new Error(`Expected 13 Office tools, got ${OFFICE_TOOLS?.length}`);
 
           const pptCreate = await executeOfficeTool('ppt_create', {
-            output_path: 'native.pptx',
-            title: 'Native Office Smoke',
-            theme: 'corporate-light',
+            output_path: 'native-designed.pptx',
+            title: 'AI Office Automation',
+            theme: 'consulting',
+            design_mode: 'polished',
             slides: [
-              { type: 'title', title: 'Native Office Smoke', subtitle: 'v0.3.2' },
-              { type: 'two_column', title: 'Capabilities', left_title: 'Create', left_bullets: ['PPT', 'Excel'], right_title: 'Review', right_bullets: ['Inspect', 'Update'] },
-              { type: 'table', title: 'Table', table: { headers: ['Item', 'Value'], rows: [['A', '1'], ['B', '2']] } },
-              { type: 'chart', title: 'Chart', chart: { type: 'column', categories: ['A', 'B'], series: [{ name: 'Value', values: [1, 2] }] } }
+              { type: 'title', title: 'AI Office Automation', subtitle: 'From repetitive work to agent workflows', eyebrow: 'INTERNAL TRAINING' },
+              { type: 'hero_number', title: 'The opportunity', metric_value: '73%', metric_label: 'of repetitive office handling can be streamlined', metric_detail: 'File organization, consolidation and reporting are ideal agent workflows.' },
+              { type: 'kpi_cards', title: 'What improves', metrics: [{ value: '4.6h', label: 'Time saved', detail: 'per employee each week' }, { value: '6x', label: 'Faster', detail: 'routine consolidation' }, { value: '1', label: 'Workflow', detail: 'from input to deliverable' }] },
+              { type: 'process', title: 'Agent workflow', steps: [{ title: 'Collect', text: 'Read source files' }, { title: 'Analyze', text: 'Understand structure' }, { title: 'Execute', text: 'Transform content' }, { title: 'Verify', text: 'Review outputs' }] },
+              { type: 'comparison', title: 'Before and after', left_title: 'Manual', left_text: 'Repeated copy/paste and checking', left_bullets: ['Slow handoffs', 'Inconsistent naming'], right_title: 'Agent', right_text: 'One instruction coordinates the workflow', right_bullets: ['Repeatable process', 'Auditable outputs'] },
+              { type: 'data_story', title: 'The business case', metric_value: '28%', metric_label: 'less administrative effort', metric_detail: 'Shift capacity from routine handling to higher-value work.', metrics: [{ value: '20', label: 'Files', detail: 'organized automatically' }, { value: '6', label: 'Departments', detail: 'consolidated together' }] },
+              { type: 'chart_insight', title: 'Where time is saved', chart: { type: 'column', categories: ['Collect', 'Rename', 'Consolidate', 'Report'], series: [{ name: 'Minutes saved', values: [18, 24, 42, 31] }] }, takeaway: 'Consolidation creates the largest single saving.', subtitle: 'Focus automation on repeated cross-file transformations.' },
+              { type: 'closing', eyebrow: 'NEXT STEP', statement: 'Start with one repetitive workflow. Make it repeatable.', subtitle: 'Then expand the same agent platform to adjacent office work.' }
             ]
           });
-          if (!pptCreate.success || pptCreate.slide_count !== 4) throw new Error(`ppt_create failed: ${JSON.stringify(pptCreate)}`);
-          const pptInspect = await executeOfficeTool('ppt_inspect', { path: 'native.pptx' });
-          if (!pptInspect.success || !pptInspect.editable || pptInspect.slide_count !== 4) throw new Error(`ppt_inspect failed: ${JSON.stringify(pptInspect)}`);
-          const pptUpdate = await executeOfficeTool('ppt_update', { path: 'native.pptx', action: 'replace_slide', slide_index: 2, slide: { type: 'bullets', title: 'Updated', bullets: ['one', 'two'] } });
-          if (!pptUpdate.success) throw new Error(`ppt_update failed: ${JSON.stringify(pptUpdate)}`);
+          if (!pptCreate.success || pptCreate.slide_count !== 8) throw new Error(`ppt_create failed: ${JSON.stringify(pptCreate)}`);
+          if (!Number.isFinite(pptCreate.design_score) || pptCreate.design_score < 80) throw new Error(`Designed PPT scored too low: ${JSON.stringify(pptCreate.design_review)}`);
+          const pptReview = await executeOfficeTool('ppt_design_review', { path: 'native-designed.pptx' });
+          if (!pptReview.success || pptReview.score < 80 || pptReview.archetype_count < 6) throw new Error(`ppt_design_review failed: ${JSON.stringify(pptReview)}`);
+          const pptInspect = await executeOfficeTool('ppt_inspect', { path: 'native-designed.pptx' });
+          if (!pptInspect.success || !pptInspect.editable || !pptInspect.slides.some(s => s.type === 'kpi_cards') || !pptInspect.slides.some(s => s.type === 'chart_insight')) throw new Error(`ppt_inspect failed: ${JSON.stringify(pptInspect)}`);
+          const pptUpdate = await executeOfficeTool('ppt_update', { path: 'native-designed.pptx', action: 'set_theme', theme: 'editorial' });
+          if (!pptUpdate.success || pptUpdate.theme !== 'editorial') throw new Error(`ppt_update theme failed: ${JSON.stringify(pptUpdate)}`);
 
           const excelCreate = await executeOfficeTool('excel_create', {
             output_path: 'native.xlsx',
@@ -146,11 +180,11 @@ jobs:
           const wordInspect = await executeOfficeTool('word_inspect', { path: 'native.docx', max_chars: 10000 });
           if (!wordInspect.success || !wordInspect.editable || !String(wordInspect.text).includes('Office subsystem')) throw new Error(`word_inspect failed: ${JSON.stringify(wordInspect)}`);
 
-          for (const file of [pptPath, xlsxPath, docxPath, path.join(tmp, 'native.pptx'), path.join(tmp, 'native.xlsx'), path.join(tmp, 'native.docx')]) {
+          for (const file of [pptPath, xlsxPath, docxPath, path.join(tmp, 'native-designed.pptx'), path.join(tmp, 'native.xlsx'), path.join(tmp, 'native.docx')]) {
             const stat = await fs.stat(file);
             if (!stat.size) throw new Error(`Generated Office file is empty: ${file}`);
           }
-          console.log('Runtime dependencies and native Office tool round-trip tests validated.');
+          console.log('Context Manager, Presentation Design Engine, runtime dependencies, and Office tools validated.');
           NODE
 
       - name: Read version
