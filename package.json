@@ -1,8 +1,8 @@
 {
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
-  "description": "A Dify-powered VS Code agent platform with coding tools, Office document generation, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.3.2",
+  "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
+  "version": "0.3.3",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,7 @@
     "vscode": "^1.90.0"
   },
   "categories": ["AI", "Other"],
-  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
+  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "presentation-design", "context-management", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
@@ -90,6 +90,46 @@
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum Dify/tool loop steps for one top-level request."
+        },
+        "difyForVscode.contextManagerEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Compact older completed tasks before sending messages to Dify while preserving recent detailed task context and the visible chat transcript."
+        },
+        "difyForVscode.contextRecentTasks": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Number of recent top-level tasks kept with detailed execution context. Older tasks are summarized."
+        },
+        "difyForVscode.contextMaxChars": {
+          "type": "number",
+          "default": 120000,
+          "minimum": 20000,
+          "maximum": 1000000,
+          "description": "Approximate maximum serialized message characters sent to Dify after context compaction."
+        },
+        "difyForVscode.contextToolResultMaxChars": {
+          "type": "number",
+          "default": 12000,
+          "minimum": 1000,
+          "maximum": 100000,
+          "description": "Maximum characters retained for one tool result in outbound model context."
+        },
+        "difyForVscode.contextStoredToolResultMaxChars": {
+          "type": "number",
+          "default": 6000,
+          "minimum": 500,
+          "maximum": 50000,
+          "description": "Maximum tool-result characters retained in compacted workspace execution history."
+        },
+        "difyForVscode.contextSummaryMaxChars": {
+          "type": "number",
+          "default": 16000,
+          "minimum": 2000,
+          "maximum": 100000,
+          "description": "Maximum characters reserved for accumulated summaries of older completed tasks."
         },
         "difyForVscode.commandTimeoutMs": {
           "type": "number",
@@ -203,7 +243,7 @@
   },
   "scripts": {
     "package": "vsce package",
-    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check officeCommon.js && node --check officePpt.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
+    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check contextManager.js && node --check officeCommon.js && node --check officePpt.js && node --check officePptDesign.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "^2.0.0",

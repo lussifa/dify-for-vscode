@@ -8,6 +8,8 @@ It combines:
 - local workspace/code/file tools
 - shell and Git operations
 - **PowerPoint, Excel and Word generation/editing**
+- **Presentation Design Engine with design review**
+- **task-aware Context Manager**
 - Playwright browser automation
 - MCP client with dynamic tool discovery
 - local MCP bridge server
@@ -18,7 +20,7 @@ It combines:
 
 The extension talks **directly to your Dify Chatflow**. Roo Code, Cline, Continue, Claude Code, or another middle layer is not required.
 
-> Current release: **v0.3.2**
+> Current release: **v0.3.3**
 
 ---
 
@@ -30,8 +32,10 @@ User
   v
 VS Code / Dify for VS Code
   |
+  +-- Context Manager
   +-- local workspace / code / shell / Git
   +-- Office: PPT / Excel / Word
+  |     +-- Presentation Design Engine
   +-- Browser: Playwright
   +-- Semantic index / memory
   +-- MCP client + MCP bridge
@@ -44,14 +48,14 @@ Dify Chatflow
 LLM decides the next tool call
 ```
 
-The important design principle is:
+The main design principle is:
 
 ```text
 Dify = reasoning / orchestration
-VS Code extension = local execution
+VS Code extension = local execution + context control
 ```
 
-The model receives the exact tool list dynamically. It decides what should happen next; the extension executes the requested tool locally and sends the real result back to Dify.
+The model receives the current conversation context and exact dynamic tool list. The extension executes requested tools locally and sends real results back to Dify.
 
 ---
 
@@ -59,7 +63,7 @@ The model receives the exact tool list dynamically. It decides what should happe
 
 ## Step 1 — Install the VSIX
 
-Download the latest release from:
+Download the latest release:
 
 https://github.com/lussifa/dify-for-vscode/releases
 
@@ -71,27 +75,21 @@ Extensions
 -> Install from VSIX...
 ```
 
-Select:
-
-```text
-dify-for-vscode-x.y.z.vsix
-```
-
 After installation, the **Dify** icon appears in the VS Code Activity Bar.
 
 ---
 
 ## Step 2 — Prepare the Dify Chatflow
 
-The easiest and recommended method is to **download the ready-made Dify Chatflow DSL included in this repository and import it directly into Dify**.
+The recommended method is to download the ready-made Dify Chatflow DSL from this repository and import it directly into Dify.
 
 ### Download the Chatflow DSL
 
-**GitHub file page**
+GitHub file page:
 
 https://github.com/lussifa/dify-for-vscode/blob/main/dify/coding-agent1.yml
 
-**Direct download / Raw file**
+Direct / raw download:
 
 https://raw.githubusercontent.com/lussifa/dify-for-vscode/main/dify/coding-agent1.yml
 
@@ -101,7 +99,7 @@ File name:
 coding-agent1.yml
 ```
 
-In Dify:
+Import in Dify:
 
 ```text
 Dify
@@ -110,7 +108,7 @@ Dify
 -> select coding-agent1.yml
 ```
 
-After importing, verify the topology is essentially:
+Recommended topology:
 
 ```text
 Start
@@ -118,36 +116,24 @@ Start
   -> Answer
 ```
 
-The extension owns the tool-execution loop. The Dify workflow itself does not need to create another loop.
+The extension owns the tool-execution loop, so the Dify workflow itself does not need another tool loop.
 
 ### Required Start variables
 
 | Variable | Type | Required | Description |
 | --- | --- | ---: | --- |
-| `messages_json` | Paragraph / long text | Yes | Complete OpenAI-compatible conversation/tool history |
+| `messages_json` | Paragraph / long text | Yes | OpenAI-compatible conversation/tool context |
 | `tools_json` | Paragraph / long text | Yes | Exact dynamic tool schemas supplied by the extension |
 | `tool_choice_json` | Text | Recommended | Normally `"auto"` |
 | `retry_feedback` | Text | Optional | Reserved compatibility feedback |
 
-The extension sends the complete history on every call. It does not rely on Dify conversation memory as the authoritative state.
+After changing the Chatflow, always click **Publish / Update** because API calls use the published application version.
 
-### After importing the DSL
-
-You may replace the sample LLM provider/model with your own model. Keep the Start variables and output protocol intact.
-
-For the latest agent guidance see:
+Agent prompt reference:
 
 ```text
 dify/chatflow-prompt.md
 ```
-
-After changing the Chatflow, always click:
-
-```text
-Publish / Update
-```
-
-because API calls use the published application version.
 
 ---
 
@@ -162,7 +148,7 @@ Tool choice: auto
 Output: strict JSON
 ```
 
-The model must return either a normal message:
+Normal final response:
 
 ```json
 {
@@ -172,7 +158,7 @@ The model must return either a normal message:
 }
 ```
 
-or one/more tool calls:
+Tool request:
 
 ```json
 {
@@ -193,13 +179,13 @@ or one/more tool calls:
 
 `function.arguments` must be a JSON **string**.
 
-The extension removes common `<think>`, `<analysis>` and `<reasoning>` wrappers, but disabling Thinking for the main execution model normally gives cleaner tool calls, lower latency and lower token use.
+The extension strips common `<think>`, `<analysis>` and `<reasoning>` wrappers, but keeping Thinking disabled for the main execution model normally gives cleaner protocol output, lower latency and lower token use.
 
 ---
 
-# 4. Configure the VS Code extension
+# 4. Configure the extension
 
-Open the Command Palette and run:
+Run:
 
 ```text
 Dify for VS Code: Configure
@@ -213,7 +199,7 @@ App API Key: app-xxxxxxxxxxxxxxxx
 User ID: vscode-agent
 ```
 
-If Dify documents the endpoint as:
+If Dify documents:
 
 ```text
 https://dify.example.com/v1/chat-messages
@@ -225,27 +211,108 @@ configure only:
 https://dify.example.com/v1
 ```
 
-The extension appends `/chat-messages` itself.
-
-The Dify API key is kept in VS Code SecretStorage.
-
-Then click **+ New Chat** and test:
-
-```text
-ping
-```
-
-Follow with a real workspace task:
-
-```text
-Read package.json and tell me the current extension version.
-```
+The extension appends `/chat-messages` itself. The API key is stored in VS Code SecretStorage.
 
 ---
 
-# 5. v0.3.2 Office subsystem
+# 5. Context Manager — v0.3.3
 
-v0.3.2 adds native Office capabilities directly to the existing agent platform.
+Before v0.3.3, if you did not click **+ New Chat**, the entire accumulated history — including old tool calls and large tool results — was sent to the LLM again on every new request.
+
+v0.3.3 adds a task-aware Context Manager.
+
+## How it works
+
+Each top-level user Send is treated as a task boundary:
+
+```text
+Task 1
+user request
+assistant tool calls
+large tool results
+final answer
+
+Task 2
+...
+
+Task 3 = current task
+```
+
+The Context Manager keeps recent tasks detailed, but older completed tasks become compact summaries:
+
+```text
+Old task
+30,000+ characters of tool history
+        |
+        v
+[Context Manager: previous task summaries]
+Task: organize demo files
+Outcome: 20 files renamed and archived
+Tools: list_files, file_info, rename_file, move_file, excel_create
+Artifacts: demo/file_manifest.xlsx
+```
+
+This preserves continuity without repeatedly sending large historical tool payloads.
+
+## Important behavior
+
+```text
+Visible chat history != outbound LLM execution context
+```
+
+The sidebar still keeps the user/assistant conversation visible. Context compaction only affects the execution history sent to Dify.
+
+## Recent tasks remain detailed
+
+Default:
+
+```text
+contextRecentTasks = 2
+```
+
+This preserves follow-up workflows while older unrelated work is summarized.
+
+## Context budget
+
+Defaults:
+
+```text
+contextMaxChars                 120000
+contextToolResultMaxChars        12000
+contextStoredToolResultMaxChars   6000
+contextSummaryMaxChars           16000
+```
+
+The Context Manager prioritizes keeping the current task and current tool-call/result cycle intact.
+
+## Sidebar context indicator
+
+The sidebar can show information similar to:
+
+```text
+context 42k/120k | 3 summarized
+```
+
+## Context settings
+
+```json
+{
+  "difyForVscode.contextManagerEnabled": true,
+  "difyForVscode.contextRecentTasks": 2,
+  "difyForVscode.contextMaxChars": 120000,
+  "difyForVscode.contextToolResultMaxChars": 12000,
+  "difyForVscode.contextStoredToolResultMaxChars": 6000,
+  "difyForVscode.contextSummaryMaxChars": 16000
+}
+```
+
+If you need a completely clean conversation, **+ New Chat** still clears the context.
+
+---
+
+# 6. Office subsystem
+
+Office capabilities are native platform tools:
 
 ```text
 Dify for VS Code
@@ -254,74 +321,46 @@ Dify for VS Code
   +-- Word (.docx)
 ```
 
-These are **native agent tools**. The LLM does not need to generate Python, VBA, JavaScript or raw Office XML just to create an Office document.
+The LLM does not need to generate Python, VBA, JavaScript or raw OOXML just to create an Office document.
 
-For normal `.pptx`, `.xlsx` and `.docx` generation, **Microsoft Office does not need to be installed**.
+For normal `.pptx`, `.xlsx` and `.docx` generation, Microsoft Office does **not** need to be installed.
 
-The generated files are stored inside the opened VS Code workspace and therefore work naturally with the existing workspace, Crew and approval systems.
+Office tools can also be used by Crew sub-agents and exposed through the local MCP bridge.
 
-## Office tool list
+---
 
-### PowerPoint
+# 7. Presentation Design Engine — v0.3.3
+
+v0.3.2 could reliably generate PPTX files, but its visual language was intentionally limited. v0.3.3 upgrades PowerPoint generation into a **Presentation Design Engine**.
+
+```text
+story / design intent
+        |
+        v
+visual slide archetype
+        |
+        v
+typography + cards + spacing + hierarchy
+        |
+        v
+PPTX
+        |
+        v
+design review
+        |
+        v
+optional revision
+```
+
+## PowerPoint tools
 
 ```text
 ppt_create
 ppt_update
 ppt_inspect
-```
-
-### Excel
-
-```text
-excel_create
-excel_inspect
-excel_write_range
-excel_append_rows
-excel_format_range
-```
-
-### Word
-
-```text
-word_create
-word_update
-word_inspect
-```
-
-### Preview / review
-
-```text
+ppt_design_review
 office_render_pdf
 ```
-
-The Office tools are also available to Crew sub-agents and are exposed through the local MCP bridge when the bridge is enabled.
-
----
-
-# 6. PowerPoint generation
-
-## Design principle
-
-The PowerPoint engine is **declarative**.
-
-Instead of asking the model to calculate dozens of absolute X/Y coordinates, the model describes the intended slide structure and the extension performs the layout.
-
-Conceptually:
-
-```text
-AI content/structure
-      |
-      v
-Declarative Presentation Spec
-      |
-      v
-Office PPT engine
-      |
-      v
-.pptx
-```
-
-This is intentionally more stable than exposing hundreds of low-level PowerPoint shape operations.
 
 ## Built-in themes
 
@@ -330,17 +369,42 @@ corporate-light
 corporate-dark
 minimal
 training
+executive
+tech
+editorial
+consulting
 ```
 
-Default font:
+Suggested use:
+
+| Theme | Use |
+| --- | --- |
+| `consulting` | clean business / management / internal review |
+| `executive` | executive narrative / strategy |
+| `editorial` | polished report / storytelling |
+| `tech` | dark technology / AI / architecture |
+| `corporate-light` | general enterprise |
+| `corporate-dark` | dark enterprise |
+| `training` | approachable learning content |
+| `minimal` | restrained, low-decoration deck |
+
+## Design mode
 
 ```text
-Microsoft YaHei
+safe
+polished
+bold
 ```
 
-You can override the font family in `ppt_create`.
+Recommended default:
 
-## Supported slide layouts
+```text
+polished
+```
+
+## Visual slide archetypes
+
+Basic layouts:
 
 ```text
 title
@@ -353,100 +417,197 @@ quote
 blank
 ```
 
-## Supported chart types
+Design-oriented archetypes:
 
 ```text
-bar
-column
-line
-pie
-doughnut
+hero_statement
+hero_number
+kpi_cards
+three_cards
+comparison
+before_after
+process
+timeline
+matrix
+data_story
+chart_insight
+closing
 ```
 
-## Example prompt
+These use distinct typography, spatial composition, cards, metrics and hierarchy rather than only changing text placement.
+
+## Archetype examples
+
+### `hero_number`
+
+Use for one dominant metric. Relevant fields:
 
 ```text
-帮我做一份 8 页的 AI 办公自动化培训 PPT。
-
-要求：
-- corporate-light 风格
-- 中文
-- 包含封面、当前痛点、解决方案、工作流程、部门案例、数据图表、实施建议、总结
-- 风格简洁，不要每页堆很多文字
-- 保存为 reports/AI办公自动化培训.pptx
-- 创建完成后用 ppt_inspect 检查结构
+metric_value
+metric_label
+metric_detail
 ```
 
-A typical Agent flow is:
+### `kpi_cards`
+
+Use `metrics[]` with:
+
+```text
+value
+label
+detail
+trend
+```
+
+### `process`
+
+Use `steps[]` for a short visual workflow:
+
+```text
+Collect -> Analyze -> Execute -> Verify
+```
+
+### `comparison` / `before_after`
+
+Use paired titles, short explanatory text and concise bullet groups.
+
+### `data_story`
+
+Combines a dominant metric with supporting KPI cards.
+
+### `chart_insight`
+
+Uses a large chart plus a separate key-insight panel so the slide communicates a conclusion instead of displaying a chart without interpretation.
+
+---
+
+# 8. PowerPoint design workflow
+
+Recommended Agent flow:
 
 ```text
 ppt_create
--> ppt_inspect
--> optional ppt_update
--> final answer
+    |
+    v
+ppt_design_review
+    |
+    +-- excellent/good -> ppt_inspect -> finish
+    |
+    +-- revise/poor
+          |
+          v
+       ppt_update weak slides
+          |
+          v
+       ppt_design_review again
 ```
+
+Normally stop after at most two design-revision cycles unless further refinement is requested.
+
+## `ppt_design_review`
+
+The reviewer returns:
+
+```text
+score
+grade
+findings
+recommendations
+archetype_count
+visual_slide_count
+```
+
+It checks risks such as:
+
+- excessive slide text
+- too many bullets
+- overlong titles
+- repeated slide archetypes
+- insufficient visual variety
+- oversized tables
+- charts with too many categories
+- malformed four-quadrant matrix slides
+
+Grades:
+
+```text
+90-100  excellent
+80-89   good
+70-79   revise
+<70     poor
+```
+
+Important: `ppt_design_review` is currently a **structural/design heuristic**, not a multimodal screenshot critic.
+
+For rendered preview use `office_render_pdf` when LibreOffice or compatible Microsoft Office automation is available locally.
 
 ## PPT update model
 
-When `ppt_create` generates a presentation, the extension also stores an editable sidecar:
+`ppt_create` writes:
 
 ```text
-AI办公自动化培训.pptx
-AI办公自动化培训.pptx.dify.json
+presentation.pptx
+presentation.pptx.dify.json
 ```
 
-The `.pptx` is the actual PowerPoint file. The `.dify.json` sidecar contains the declarative presentation structure used by the Agent.
-
-This lets `ppt_update` reliably:
+Supported update actions:
 
 ```text
 replace_slide
 append_slide
 delete_slide
 set_title
+set_theme
 ```
-
-without reverse-engineering the OOXML file every time.
-
-For an arbitrary external PowerPoint not created by this subsystem, `ppt_inspect` can confirm the file exists, but structured `ppt_update` requires the Dify sidecar.
 
 ---
 
-# 7. Excel automation
-
-Excel is implemented as a real workbook engine rather than CSV-only automation.
-
-## `excel_create`
-
-Creates `.xlsx` workbooks with:
-
-- multiple worksheets
-- headers and data rows
-- styled headers
-- automatic or explicit column widths
-- frozen header rows
-- AutoFilter
-- number formats
-- formulas
-- hyperlinks
-- date values
-
-Example prompt:
+# 9. Recommended PPT prompt
 
 ```text
-创建 reports/部门汇总.xlsx。
+帮我做一份 8 页的《AI办公自动化》汇报 PPT。
 
-建立两个 Sheet：
-1. Summary：部门、提交数量、总金额、完成率
-2. Detail：日期、部门、项目、负责人、金额、状态
-
-Summary 第一行使用表头样式，冻结首行并开启筛选。
-完成后用 excel_inspect 检查工作簿。
+要求：
+- theme 使用 consulting
+- design_mode 使用 polished
+- 中文
+- 面向管理层和普通办公室员工
+- 每页只表达一个核心观点
+- 不要连续使用三页相同布局
+- 不要把内容全部做成 bullets
+- 至少使用：hero_number、kpi_cards、process、comparison、chart_insight、closing
+- 文案精炼，强调视觉层级和留白
+- 保存为 reports/AI办公自动化.pptx
+- 创建后必须执行 ppt_design_review
+- 如果设计分低于 80 或 grade 为 revise/poor，按 findings 使用 ppt_update 改版，再 review 一次
+- 最后使用 ppt_inspect 检查结构
 ```
 
-## Formula cells
+---
 
-The tool schema supports formula objects conceptually like:
+# 10. Excel automation
+
+Excel tools:
+
+```text
+excel_create
+excel_inspect
+excel_write_range
+excel_append_rows
+excel_format_range
+```
+
+Capabilities include multiple worksheets, styled headers, frozen rows, filters, widths, number formats, formulas, hyperlinks, dates and direct range edits.
+
+Recommended existing-workbook pattern:
+
+```text
+excel_inspect
+-> excel_write_range / excel_append_rows / excel_format_range
+-> excel_inspect
+```
+
+Formula value example:
 
 ```json
 {
@@ -455,45 +616,19 @@ The tool schema supports formula objects conceptually like:
 }
 ```
 
-## Existing workbook operations
-
-Inspect first:
-
-```text
-excel_inspect
-```
-
-Then use:
-
-```text
-excel_write_range
-excel_append_rows
-excel_format_range
-```
-
-Examples:
-
-```text
-把 Sheet1 的 B2:D20 更新成新的数据
-```
-
-```text
-把 20 行新记录追加到 Detail Sheet
-```
-
-```text
-将 A1:F1 设置为粗体、居中、蓝色背景，并给 C2:C100 设置金额格式
-```
-
-All edits are saved directly back into the requested workbook inside the workspace.
-
 ---
 
-# 8. Word document generation
+# 11. Word automation
 
-Word also uses a declarative document model.
+Word tools:
 
-## Supported content blocks
+```text
+word_create
+word_update
+word_inspect
+```
+
+Supported blocks:
 
 ```text
 heading
@@ -505,31 +640,9 @@ quote
 page_break
 ```
 
-Example prompt:
+Dify-generated Word files receive a `.docx.dify.json` sidecar for structured updates.
 
-```text
-帮我生成一份 Word 报告：reports/AI工具试点总结.docx
-
-结构：
-- 标题
-- 项目背景
-- 试点范围
-- 关键成果
-- 问题和风险
-- 下一步计划
-- 附表
-
-使用正式商务中文，层级清晰。
-生成后用 word_inspect 检查正文内容。
-```
-
-Like PowerPoint, `word_create` stores a sidecar:
-
-```text
-AI工具试点总结.docx.dify.json
-```
-
-For Dify-generated documents, `word_update` can:
+Supported actions:
 
 ```text
 replace_block
@@ -538,109 +651,63 @@ delete_block
 set_title
 ```
 
-`word_inspect` can also extract readable text from an **existing external `.docx`** even when no sidecar exists.
-
-For an external Word file without a sidecar, the safe pattern is:
-
-```text
-word_inspect existing.docx
--> understand content
--> word_create revised.docx
-```
-
-rather than pretending arbitrary DOCX structure can be safely rewritten.
+`word_inspect` can read text from arbitrary existing DOCX files. External DOCX files without sidecars should normally be inspected and rewritten to a new output rather than structurally edited in place.
 
 ---
 
-# 9. Office PDF rendering / preview
+# 12. Office PDF preview
 
-`office_render_pdf` can convert:
+`office_render_pdf` can render `.pptx`, `.xlsx` and `.docx`.
 
-```text
-.pptx
-.xlsx
-.docx
-```
-
-to a PDF inside the workspace for review.
-
-Renderer order:
+Renderer preference:
 
 ```text
-1. LibreOffice, when available
+1. LibreOffice
 2. Microsoft Office COM fallback on Windows
 ```
 
-Therefore:
+Document generation itself does not depend on a renderer.
 
-- Office generation itself requires **no Office installation**
-- PDF rendering is **optional** and requires a supported local renderer
+---
 
-If the machine has neither LibreOffice nor compatible Microsoft Office automation, the Office file can still be generated successfully; only PDF preview is unavailable.
+# 13. Office + multi-agent workflow
+
+Example presentation Crew:
+
+```text
+Researcher
+    |
+    v
+Content Planner
+    |
+    v
+Presentation Designer
+    |
+    v
+PPT Builder
+    |
+    v
+Design Reviewer
+```
 
 Example:
 
 ```text
-生成 PPT 后把它渲染成 PDF，保存到 office-preview，并检查生成结果。
-```
+必须使用 run_crew 做季度业务复盘 PPT。
 
----
-
-# 10. Office + multi-agent workflow
-
-Office tools can be placed in Crew allowlists just like coding tools.
-
-A useful presentation Crew can look like:
-
-```text
-Researcher
-   |
-   v
-Content Planner
-   |
-   v
-PPT Builder
-   |
-   v
-Reviewer
-```
-
-Example user prompt:
-
-```text
-必须使用 run_crew 完成一份季度业务复盘 PPT。
-
-Researcher：读取 workspace 中的 Excel 和相关资料，整理关键事实。
-Content Planner：规划 10 页故事线和每页核心信息。
+Researcher：读取 Excel 和相关资料，整理事实。
+Content Planner：规划故事线，每页一个核心信息。
+Presentation Designer：为每页选择合适的 PPT visual archetype。
 PPT Builder：使用 ppt_create 创建 PPT。
-Reviewer：使用 ppt_inspect 检查页数、结构、内容密度；发现明显问题时给出 FAIL 和修改建议。
-最终输出 reports/Q3业务复盘.pptx。
+Design Reviewer：执行 ppt_design_review；如果 grade 为 revise/poor，给出修改建议。
+Builder 使用 ppt_update 修改，然后 Reviewer 再检查一次。
 ```
-
-For a data-report workflow:
-
-```text
-Excel data
-   |
-   +-> excel_inspect
-   |
-   v
-Analysis Agent
-   |
-   v
-Presentation Planner
-   |
-   v
-ppt_create
-```
-
-This makes Office creation part of the same general Agent framework rather than a separate extension.
 
 ---
 
-# 11. Core local coding/workspace tools
+# 14. Core local tools
 
-## Read and inspect
+Read / inspect:
 
 ```text
 get_workspace_info
@@ -654,7 +721,7 @@ get_diagnostics
 open_file
 ```
 
-## Edit / file management
+Edit / file management:
 
 ```text
 write_file
@@ -668,7 +735,7 @@ copy_file
 delete_file
 ```
 
-## Execution / Git
+Execution / Git:
 
 ```text
 run_command
@@ -676,22 +743,16 @@ git_status
 git_diff
 ```
 
-## External / human interaction
+External / interaction:
 
 ```text
 fetch_url
 ask_user
 ```
 
-The actual tool count is dynamic because Office and MCP capabilities are injected at runtime.
-
 ---
 
-# 12. Browser automation
-
-The extension uses **Playwright Core** and an already installed browser.
-
-Supported tools:
+# 15. Browser automation
 
 ```text
 browser_open
@@ -706,38 +767,21 @@ browser_screenshot
 browser_close
 ```
 
-Recommended interaction pattern:
+Recommended pattern:
 
 ```text
 browser_open
 -> browser_snapshot
 -> inspect stable refs
--> browser_click / browser_fill
+-> interact
 -> browser_snapshot again
 ```
 
-`browser_snapshot` creates selectors such as:
-
-```text
-[data-dify-ref="e12"]
-```
-
-Settings:
-
-```json
-{
-  "difyForVscode.browserChannel": "auto",
-  "difyForVscode.browserHeadless": false,
-  "difyForVscode.browserExecutablePath": "",
-  "difyForVscode.browserIgnoreHTTPSErrors": false
-}
-```
-
-`playwright-core` is bundled as a dependency, but the VSIX does not download its own browser. Install Edge/Chrome/Chromium on the machine.
+`playwright-core` is included, but the VSIX does not bundle a browser. Install Edge, Chrome or Chromium locally.
 
 ---
 
-# 13. MCP client
+# 16. MCP client
 
 Configure external MCP servers through:
 
@@ -745,62 +789,25 @@ Configure external MCP servers through:
 difyForVscode.mcpServers
 ```
 
-## stdio example
+The extension supports stdio, Streamable HTTP and SSE compatibility.
 
-```json
-{
-  "difyForVscode.mcpServers": {
-    "filesystem": {
-      "enabled": true,
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "D:\\code"]
-    }
-  }
-}
-```
-
-## Streamable HTTP example
-
-```json
-{
-  "difyForVscode.mcpServers": {
-    "internal-tools": {
-      "enabled": true,
-      "transport": "http",
-      "url": "https://mcp.example.com/mcp",
-      "headers": {
-        "Authorization": "Bearer ${env:MY_MCP_TOKEN}"
-      }
-    }
-  }
-}
-```
-
-Environment interpolation:
-
-```text
-${env:VARIABLE_NAME}
-```
-
-Commands:
+Useful commands:
 
 ```text
 Dify for VS Code: Refresh MCP Servers
 Dify for VS Code: Show MCP Status
 ```
 
-Discovered tools appear dynamically as:
+Discovered tools use names similar to:
 
 ```text
-mcp__server__tool
+mcp__filesystem__read_file
+mcp__database__query
 ```
 
 ---
 
-# 14. MCP bridge server
-
-The extension can expose its own local tools—including Office tools—to other MCP-capable agents.
+# 17. MCP bridge server
 
 Start:
 
@@ -814,13 +821,9 @@ Default endpoint:
 http://127.0.0.1:8765/mcp
 ```
 
-By default the server:
+The bridge binds to localhost and uses a generated bearer token by default.
 
-- binds to `127.0.0.1` only
-- requires a bearer token
-- stores the token in SecretStorage
-
-Copy a ready-to-use client config with:
+Copy configuration with:
 
 ```text
 Dify for VS Code: Copy MCP Bridge Client Config
@@ -828,495 +831,182 @@ Dify for VS Code: Copy MCP Bridge Client Config
 
 ---
 
-# 15. Semantic workspace index
-
-Tools:
+# 18. Semantic workspace index and memory
 
 ```text
 semantic_index_build
 semantic_search
 semantic_index_status
 semantic_index_clear
+memory_save
+memory_search
+memory_clear
 ```
 
-Configure an OpenAI-compatible embedding endpoint:
+Configure embeddings with:
 
 ```text
 Dify for VS Code: Configure Semantic Embeddings
 ```
 
-Example with Ollama:
+Ollama example:
 
 ```text
 Base URL: http://127.0.0.1:11434/v1
 Model: nomic-embed-text
 ```
 
-Then:
-
-```text
-Dify for VS Code: Build Semantic Workspace Index
-```
-
-If no embedding model is configured, the extension uses an offline code-aware feature-hash vector fallback. The fallback works, but a real embedding model produces substantially better concept-level retrieval.
+Without a configured embedding provider, the local code-aware feature-hash fallback is used.
 
 ---
 
-# 16. Long-term vector memory
+# 19. Multi-agent Crew
 
-Tools:
-
-```text
-memory_save
-memory_search
-memory_clear
-```
-
-Use cases include:
-
-- architecture decisions
-- investigation findings
-- project conventions
-- Crew task results
-- reusable research/context
-
-This is separate from normal conversation history.
-
----
-
-# 17. Multi-agent Crews
-
-The top-level Dify agent can call:
+Top-level tool:
 
 ```text
 run_crew
 ```
 
-Each sub-agent has its own:
+Crews support sequential/hierarchical processing, planning, memory, task dependencies, async execution, per-agent tool allowlists and bounded reviewer FAIL -> fix -> recheck cycles.
 
-- role
-- goal
-- backstory
-- conversation history
-- tool allowlist
-- step budget
+---
 
-Processes:
+# 20. YOLO mode
 
-```text
-sequential
-hierarchical
-```
+With YOLO OFF, mutating operations require approval. YOLO can auto-approve file writes, commands, browser side effects, Office writes, Crew mutations and potentially mutating MCP tools.
 
-Dependency-ready tasks may use:
+---
+
+# 21. New Chat and history
+
+`+ New Chat` still means a completely clean context.
+
+Without New Chat in v0.3.3:
 
 ```text
-async_execution: true
-```
-
-v0.3.1+ also contains Crew resilience features:
-
-- remaining-step budget reminders
-- duplicate tool-call suppression
-- forced finalization near the step limit
-- partial-result fallback instead of killing the entire Crew
-- Reviewer `PASS / FAIL` discipline
-- bounded Coder Fix -> Reviewer Recheck loops
-
-Maximum automatic review/fix cycles:
-
-```text
-difyForVscode.crewMaxReviewCycles
-```
-
-Default:
-
-```text
-2
+recent tasks -> detailed
+older completed tasks -> Context Manager summaries
+visible chat -> retained separately
 ```
 
 ---
 
-# 18. YOLO mode and approvals
-
-With YOLO OFF, potentially mutating actions ask for approval.
-
-This includes:
-
-- file writes/moves/deletes
-- shell commands
-- browser actions with side effects
-- potentially mutating MCP tools
-- Crew sub-agent mutations
-- Office creation/modification
-- Office PDF rendering
-
-Toggle:
-
-```text
-Dify for VS Code: Toggle YOLO Mode
-```
-
-For autonomous work on a trusted workspace, YOLO can reduce interruptions. For important coding projects, commit to Git before large autonomous tasks.
-
----
-
-# 19. Running state in the chat UI
-
-When a task is running, the Send button changes from:
-
-```text
-Send
-```
-
-to a visible spinner / working state:
-
-```text
-Working
-```
-
-The status area also shows the current top-level Agent step, for example:
-
-```text
-Dify thinking - step 3/40
-```
-
-The UI returns to normal after completion or error.
-
----
-
-# 20. Recommended acceptance tests
-
-After installing a new VSIX, test in this order.
-
-## A — Dify protocol
-
-```text
-ping
-```
-
-## B — Local workspace tools
-
-```text
-Read package.json and tell me the current extension version.
-```
-
-## C — PowerPoint
-
-```text
-创建一个 5 页的 corporate-light 中文测试 PPT，介绍 Dify for VS Code 的能力，保存为 office-test/demo.pptx，然后用 ppt_inspect 检查。
-```
-
-Expected primary tools:
-
-```text
-ppt_create
-ppt_inspect
-```
-
-## D — Excel
-
-```text
-创建 office-test/demo.xlsx，包含 Summary 和 Detail 两个 Sheet，填入一些演示数据，冻结表头并启用筛选，之后用 excel_inspect 检查。
-```
-
-Expected:
-
-```text
-excel_create
-excel_inspect
-```
-
-## E — Word
-
-```text
-创建 office-test/demo.docx，写一份结构化测试报告，包含标题、二级标题、项目符号和表格，然后用 word_inspect 检查。
-```
-
-Expected:
-
-```text
-word_create
-word_inspect
-```
-
-## F — Office edit
-
-```text
-把刚才 PPT 的第二页改成两栏布局；Excel 追加两行；Word 最后追加一个“下一步”章节。
-```
-
-Expected tools include:
-
-```text
-ppt_update
-excel_append_rows
-word_update
-```
-
-## G — Browser
-
-```text
-Open https://example.com, inspect it and tell me the visible heading.
-```
-
-## H — Crew
-
-```text
-必须使用 run_crew，让 architect、coder、reviewer 分工分析当前项目并完成一个小改进。
-```
-
----
-
-# 21. Configuration reference
+# 22. Configuration reference
 
 | Setting | Default | Purpose |
-| --- | --- | --- |
+| --- | ---: | --- |
 | `difyForVscode.baseUrl` | `http://127.0.0.1/v1` | Dify API base URL |
 | `difyForVscode.userId` | `vscode-agent` | Dify user identifier |
-| `difyForVscode.yoloMode` | `false` | Auto-approve mutating operations |
-| `difyForVscode.maxAgentSteps` | `40` | Maximum top-level Dify/tool loop steps |
+| `difyForVscode.yoloMode` | `false` | Auto-approve mutations |
+| `difyForVscode.maxAgentSteps` | `40` | Top-level loop limit |
+| `difyForVscode.contextManagerEnabled` | `true` | Enable task-aware context compaction |
+| `difyForVscode.contextRecentTasks` | `2` | Recent detailed tasks |
+| `difyForVscode.contextMaxChars` | `120000` | Approximate outbound context budget |
+| `difyForVscode.contextToolResultMaxChars` | `12000` | Per-tool outbound result limit |
+| `difyForVscode.contextStoredToolResultMaxChars` | `6000` | Tool result retained after persistent compaction |
+| `difyForVscode.contextSummaryMaxChars` | `16000` | Old-task summary budget |
 | `difyForVscode.commandTimeoutMs` | `120000` | Shell/patch/Git timeout |
-| `difyForVscode.checkUpdatesOnStartup` | `true` | Check GitHub Releases on startup |
 | `difyForVscode.browserChannel` | `auto` | Browser channel |
-| `difyForVscode.browserExecutablePath` | empty | Explicit browser executable |
 | `difyForVscode.browserHeadless` | `false` | Headless browser mode |
-| `difyForVscode.browserIgnoreHTTPSErrors` | `false` | Ignore browser TLS errors |
 | `difyForVscode.mcpServers` | `{}` | External MCP servers |
 | `difyForVscode.mcpBridgeEnabled` | `false` | Auto-start MCP bridge |
 | `difyForVscode.mcpBridgePort` | `8765` | MCP bridge port |
-| `difyForVscode.mcpBridgeRequireToken` | `true` | Require bridge bearer token |
 | `difyForVscode.semanticEmbeddingBaseUrl` | empty | Embedding endpoint |
 | `difyForVscode.semanticEmbeddingModel` | empty | Embedding model |
-| `difyForVscode.semanticIndexMaxFiles` | `2500` | Max indexed files |
-| `difyForVscode.semanticChunkChars` | `3500` | Semantic chunk size |
-| `difyForVscode.semanticChunkOverlapChars` | `500` | Semantic overlap |
-| `difyForVscode.crewTaskMaxSteps` | `14` | Default steps per Crew task |
+| `difyForVscode.crewTaskMaxSteps` | `14` | Default Crew task budget |
 | `difyForVscode.crewMaxParallelTasks` | `3` | Parallel async Crew tasks |
-| `difyForVscode.crewMaxReviewCycles` | `2` | Max automatic fix/re-review cycles |
-
-Office generation has no mandatory external configuration.
+| `difyForVscode.crewMaxReviewCycles` | `2` | Automatic review/fix cycles |
 
 ---
 
-# 22. Troubleshooting
+# 23. Recommended acceptance tests
+
+## Context Manager
+
+Run several unrelated tool-heavy tasks without clicking New Chat. Old user/assistant messages should remain visible while the sidebar starts showing summarized context usage.
+
+## Presentation Design Engine
+
+```text
+制作一份 8 页 AI 办公自动化 PPT。
+使用 consulting + polished。
+至少使用 hero_number、kpi_cards、process、comparison、data_story、chart_insight、closing。
+创建后执行 ppt_design_review；低于80自动修改一次。
+```
+
+Expected flow:
+
+```text
+ppt_create
+ppt_design_review
+optional ppt_update
+ppt_design_review
+ppt_inspect
+```
+
+---
+
+# 24. Troubleshooting
 
 ## `messages_json is required in input form`
 
-The published Dify Start node does not match the required contract. Import the repository DSL or verify the Start variable names, then publish again.
+Verify the imported/published Chatflow Start variables and publish again.
 
-## Raw `<think>` or protocol JSON appears in the chat
+## PPT still looks too text-heavy
 
-Recommended actions:
+Use explicit visual-archetype requirements and run `ppt_design_review`. "Make it beautiful" alone is less precise than specifying the desired design language.
 
-1. Disable Thinking/Reasoning in the main Dify LLM.
-2. Use the latest extension release.
-3. Click **+ New Chat**.
-4. Confirm the Dify LLM returns the strict protocol object.
+## Context misses an old exact tool detail
 
-## Office tool is not selected by the model
-
-Make sure:
-
-- the VSIX is v0.3.2+
-- the Chatflow is using the latest recommended prompt guidance
-- the Chatflow was published after changes
-- the task explicitly asks for `.pptx`, `.xlsx` or `.docx` when appropriate
-
-The Office schemas are dynamically injected into `tools_json`.
-
-## `ppt_update` says there is no Dify editable sidecar
-
-`ppt_update` is for PPT files originally generated with `ppt_create`.
-
-Keep both:
-
-```text
-file.pptx
-file.pptx.dify.json
-```
-
-For a third-party PowerPoint, create a new declarative presentation rather than attempting an unsafe structural rewrite.
-
-## `word_update` says there is no Dify editable sidecar
-
-Same concept as PowerPoint. `word_inspect` can read text from arbitrary DOCX files, but structured in-place `word_update` requires the sidecar generated by `word_create`.
+That low-level detail may have been summarized. Ask the Agent to inspect the current workspace/file again.
 
 ## `office_render_pdf` fails
 
-Install one of:
-
-```text
-LibreOffice
-```
-
-or, on Windows, use an installed Microsoft Office environment that supports PowerPoint/Word/Excel COM automation.
-
-The original `.pptx`, `.xlsx` or `.docx` generation may still be completely valid even when PDF rendering is unavailable.
-
-## Browser does not start
-
-Try:
-
-```json
-{
-  "difyForVscode.browserChannel": "msedge"
-}
-```
-
-or set `browserExecutablePath` explicitly.
-
-## MCP tools do not appear
-
-Run:
-
-```text
-Dify for VS Code: Refresh MCP Servers
-Dify for VS Code: Show MCP Status
-```
-
-## Semantic search is weak
-
-Configure a real embedding model and rebuild the workspace index.
+Install LibreOffice or use compatible Microsoft Office automation. Office document generation itself can still succeed.
 
 ---
 
-# 23. Architecture
+# 25. Architecture
 
 ```text
-VS Code UI
-   |
-   v
 platform-entry.js
-   |  lifecycle + dynamic Dify tool injection
-   |
-   +-- compat.js
-   |     Dify protocol adapter
-   |     reasoning cleanup
-   |     update checks
-   |
-   +-- extension.js
-   |     chat UI
-   |     top-level agent loop
-   |     approval / YOLO
-   |     running-state UI
-   |
-   +-- agentRuntime.js
-   |     Crew sub-agent loops
-   |     step budgets / duplicate-call protection
-   |
-   +-- tools.js
-   |     platform-aware execution router
-   |
-   +-- localTools.js
-   |     workspace / files / Git / shell
-   |
-   +-- office.js
-   |     Office tool schemas + router
-   |
-   +-- officePpt.js
-   |     declarative PowerPoint engine
-   |
-   +-- officeExcel.js
-   |     Excel workbook engine
-   |
-   +-- officeWord.js
-   |     Word document engine
-   |
-   +-- officeCommon.js
-   |     workspace safety / sidecars / PDF rendering
-   |
-   +-- browser.js
-   |     Playwright browser automation
-   |
-   +-- semantic.js
-   |     embeddings / vector index / memory
-   |
-   +-- crew.js
-   |     Agent / Task / Crew orchestration
-   |
-   +-- mcp.js
-   |     MCP client + dynamic tool discovery
-   |
-   +-- mcpServer.js
-   |     localhost MCP bridge
-   |
-   +-- platform.js
-         capability registry / execution routing
+  |
+  +-- compat.js
+  +-- extension.js
+  |     top-level chat / agent loop / display history
+  +-- contextManager.js
+  |     task summaries / tool trimming / context budget
+  +-- agentRuntime.js
+  +-- tools.js / localTools.js
+  +-- office.js
+  |     Office schemas/router
+  +-- officePptDesign.js
+  |     visual archetypes / typography / design review
+  +-- officeExcel.js
+  +-- officeWord.js
+  +-- officeCommon.js
+  +-- browser.js
+  +-- semantic.js
+  +-- crew.js
+  +-- mcp.js
+  +-- mcpServer.js
+  +-- platform.js
 ```
 
 ---
 
-# 24. Development
-
-Recommended:
+# 26. Development
 
 ```text
-Node.js 22
+Node.js 22 recommended
 VS Code 1.90+
 ```
 
-Install:
-
 ```bash
 npm install
-```
-
-Validate syntax:
-
-```bash
 npm run check
-```
-
-Build:
-
-```bash
 npm run package
 ```
 
-Main runtime dependencies include:
-
-```text
-playwright-core
-@modelcontextprotocol/client
-@modelcontextprotocol/server
-@modelcontextprotocol/node
-pptxgenjs
-exceljs
-docx
-mammoth
-```
-
-The GitHub Actions pipeline also performs actual Office smoke tests by generating PPTX/XLSX/DOCX files and reading Excel/Word back before a release is produced.
-
----
-
-# 25. Recommended operating model
-
-```text
-Main Dify tool-calling LLM
-  Thinking: OFF
-  Temperature: 0.1 - 0.3
-
-VS Code Agent
-  YOLO: OFF for unfamiliar repositories/files
-  YOLO: ON for trusted autonomous workflows
-
-Office tasks
-  Prefer native ppt_ / excel_ / word_ tools
-  Inspect after generation
-  Render to PDF when a local renderer exists and visual review matters
-
-Large codebases
-  Build semantic index
-  Prefer a real embedding model
-
-Complex tasks
-  Let the top-level Agent invoke a Crew
-  Researcher / Planner / Builder / Reviewer as needed
-
-Before major autonomous code edits
-  Commit current Git state
-```
-
-The goal is one local Agent platform that can move naturally between code, files, Office documents, web interaction, external MCP capabilities and coordinated multi-agent work.
+GitHub Actions validates syntax/runtime exports, the Context Manager, native Office round-trips and a multi-archetype designed PPT before a VSIX release is produced.

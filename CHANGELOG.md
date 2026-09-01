@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.3
+
+- Add a task-aware Context Manager for top-level Dify conversations
+- Keep recent tasks with detailed tool context while compacting older completed tasks into concise summaries
+- Preserve user goals, final outcomes, tool names and likely artifact paths when old tasks are summarized
+- Trim oversized tool results before they are repeatedly sent back to the LLM
+- Enforce an approximate outbound context character budget without dropping the current task/tool cycle
+- Keep visible user/assistant chat history separate from the compacted execution context so UI history does not disappear
+- Show current outbound context usage in the sidebar metadata
+- Add configurable `contextManagerEnabled`, `contextRecentTasks`, `contextMaxChars`, `contextToolResultMaxChars`, `contextStoredToolResultMaxChars` and `contextSummaryMaxChars` settings
+- Upgrade PowerPoint generation from a basic layout renderer to a Presentation Design Engine
+- Add new PPT themes: `executive`, `tech`, `editorial` and `consulting` in addition to the existing themes
+- Add visual slide archetypes: `hero_statement`, `hero_number`, `kpi_cards`, `three_cards`, `comparison`, `before_after`, `process`, `timeline`, `matrix`, `data_story`, `chart_insight` and `closing`
+- Add richer slide fields for hero metrics, takeaways, cards, KPIs, process steps, timeline items and matrix quadrants
+- Add stronger typography, asymmetric cover/hero layouts, visual cards and data-story composition
+- Add `design_mode` (`safe`, `polished`, `bold`) to presentation specs
+- Add `ppt_design_review` with a 0-100 design score, grade, findings and recommendations
+- Make `ppt_create`, `ppt_inspect` and `ppt_update` return design-review information
+- Add `set_theme` to `ppt_update`
+- Upgrade PPT sidecars to design-spec version 2 while retaining declarative rebuild/update behavior
+- Expand Dify tool guidance so the model prefers varied visual archetypes and performs create -> design review -> revise loops instead of repeatedly generating bullet slides
+- Extend CI with Context Manager regression tests and a real multi-archetype Presentation Design Engine smoke deck
+
 ## 0.3.2
 
 - Add native Office subsystem to the existing Dify agent platform
