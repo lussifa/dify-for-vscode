@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Add a visible Skills toolbar button to the Dify sidebar view title
+- Use the VS Code native `$(tools)` icon for the Skills entry
+- Open the existing **Dify for VS Code: Manage Skills** UI directly from the sidebar
+- Keep Command Palette access to **Manage Skills** and **Create Skill** unchanged
+
 ## 0.4.0
 
 - Add first-class reusable Skill support based on `SKILL.md` / `skill.md`
