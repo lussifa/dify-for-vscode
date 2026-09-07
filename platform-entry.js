@@ -9,7 +9,8 @@ const {
 } = require('./platform');
 const { initializeAgentRuntime, runSubAgent, executeToolWithApproval } = require('./agentRuntime');
 const { executeSemanticTool } = require('./semantic');
-const { getSkillContext, getSkillCatalog, invalidateSkillCache } = require('./skills');
+const { getSkillContext } = require('./skills');
+const { initializeSkillManager, showSkillManager, createSkill } = require('./skillManager');
 
 let extensionContext;
 
@@ -72,6 +73,7 @@ function activate(context) {
     getAllTools,
     executeExternalTool: (name, args) => executeToolWithApproval({ id: `mcp_bridge_${Date.now()}`, name, arguments: args }, { source: 'mcp-bridge' })
   });
+  initializeSkillManager(context);
 
   compat.activate(context);
   context.subscriptions.push(
@@ -81,18 +83,8 @@ function activate(context) {
     vscode.commands.registerCommand('difyForVscode.stopMcpServer', stopBridgeCommand),
     vscode.commands.registerCommand('difyForVscode.copyMcpBridgeConfig', copyBridgeConfig),
     vscode.commands.registerCommand('difyForVscode.configureEmbeddings', configureEmbeddings),
-    vscode.commands.registerCommand('difyForVscode.showSkills', async () => {
-      const config = vscode.workspace.getConfiguration('difyForVscode');
-      invalidateSkillCache();
-      const skills = await getSkillCatalog(config);
-      const workspaceCount = skills.filter(s => s.source === 'workspace').length;
-      const globalCount = skills.filter(s => s.source === 'global').length;
-      const text = skills.length
-        ? `Skills: ${workspaceCount} workspace / ${globalCount} global\n\n${skills.map(s => `${s.name} [${s.source}]\n${s.description || '(no description)'}\n${s.path}`).join('\n\n')}`
-        : 'No SKILL.md/skill.md files were found in the current workspace or configured global skill directories.';
-      vscode.window.showInformationMessage(text, { modal: true });
-      return skills;
-    }),
+    vscode.commands.registerCommand('difyForVscode.showSkills', showSkillManager),
+    vscode.commands.registerCommand('difyForVscode.createSkill', createSkill),
     vscode.commands.registerCommand('difyForVscode.buildSemanticIndex', async () => {
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Building semantic workspace index', cancellable: false }, async () => {
         const result = await executeSemanticTool('semantic_index_build', {}, vscode.workspace.getConfiguration('difyForVscode'));
@@ -102,17 +94,6 @@ function activate(context) {
     vscode.commands.registerCommand('difyForVscode.semanticIndexStatus', async () => {
       const result = await executeSemanticTool('semantic_index_status', {}, vscode.workspace.getConfiguration('difyForVscode'));
       vscode.window.showInformationMessage(result.exists ? `Semantic index: ${result.file_count} files, ${result.chunk_count} chunks, ${result.provider}/${result.model || ''}` : 'Semantic index has not been built yet.', { modal: true });
-    })
-  );
-
-  const invalidate = () => invalidateSkillCache();
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeWorkspaceFolders(invalidate),
-    vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('difyForVscode.skillsEnabled') ||
-          event.affectsConfiguration('difyForVscode.skillsGlobalEnabled') ||
-          event.affectsConfiguration('difyForVscode.skillsGlobalDirectories') ||
-          event.affectsConfiguration('difyForVscode.skillsMaxFiles')) invalidate();
     })
   );
 
