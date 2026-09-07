@@ -45,7 +45,7 @@ globalThis.fetch = async function platformAwareFetch(input, init = {}) {
         let messages = [];
         try { messages = JSON.parse(inputs.messages || '[]'); } catch {}
         if (Array.isArray(messages)) {
-          const marker = '[Dify for VS Code workspace skills]';
+          const marker = '[Dify for VS Code skills]';
           const skillMessage = { role: 'system', content: `${marker}\n${skillContext}` };
           const existingIndex = messages.findIndex(m => m?.role === 'system' && String(m?.content || '').startsWith(marker));
           if (existingIndex >= 0) messages[existingIndex] = skillMessage;
@@ -85,9 +85,11 @@ function activate(context) {
       const config = vscode.workspace.getConfiguration('difyForVscode');
       invalidateSkillCache();
       const skills = await getSkillCatalog(config);
+      const workspaceCount = skills.filter(s => s.source === 'workspace').length;
+      const globalCount = skills.filter(s => s.source === 'global').length;
       const text = skills.length
-        ? skills.map(s => `${s.name}\n${s.description || '(no description)'}\n${s.path}`).join('\n\n')
-        : 'No SKILL.md/skill.md files were found in the current workspace.';
+        ? `Skills: ${workspaceCount} workspace / ${globalCount} global\n\n${skills.map(s => `${s.name} [${s.source}]\n${s.description || '(no description)'}\n${s.path}`).join('\n\n')}`
+        : 'No SKILL.md/skill.md files were found in the current workspace or configured global skill directories.';
       vscode.window.showInformationMessage(text, { modal: true });
       return skills;
     }),
@@ -100,6 +102,17 @@ function activate(context) {
     vscode.commands.registerCommand('difyForVscode.semanticIndexStatus', async () => {
       const result = await executeSemanticTool('semantic_index_status', {}, vscode.workspace.getConfiguration('difyForVscode'));
       vscode.window.showInformationMessage(result.exists ? `Semantic index: ${result.file_count} files, ${result.chunk_count} chunks, ${result.provider}/${result.model || ''}` : 'Semantic index has not been built yet.', { modal: true });
+    })
+  );
+
+  const invalidate = () => invalidateSkillCache();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(invalidate),
+    vscode.workspace.onDidChangeConfiguration(event => {
+      if (event.affectsConfiguration('difyForVscode.skillsEnabled') ||
+          event.affectsConfiguration('difyForVscode.skillsGlobalEnabled') ||
+          event.affectsConfiguration('difyForVscode.skillsGlobalDirectories') ||
+          event.affectsConfiguration('difyForVscode.skillsMaxFiles')) invalidate();
     })
   );
 
