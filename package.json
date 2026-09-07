@@ -17,7 +17,7 @@
     "vscode": "^1.90.0"
   },
   "categories": ["AI", "Other"],
-  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "presentation-design", "context-management", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
+  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "presentation-design", "context-management", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search", "skills"],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
@@ -30,6 +30,7 @@
     "onCommand:difyForVscode.showMcpStatus",
     "onCommand:difyForVscode.stopMcpServer",
     "onCommand:difyForVscode.copyMcpBridgeConfig",
+    "onCommand:difyForVscode.showSkills",
     "onCommand:difyForVscode.buildSemanticIndex",
     "onCommand:difyForVscode.semanticIndexStatus"
   ],
@@ -47,6 +48,7 @@
       { "command": "difyForVscode.stopMcpServer", "title": "Dify for VS Code: Stop MCP Bridge Server" },
       { "command": "difyForVscode.copyMcpBridgeConfig", "title": "Dify for VS Code: Copy MCP Bridge Client Config" },
       { "command": "difyForVscode.configureEmbeddings", "title": "Dify for VS Code: Configure Semantic Embeddings" },
+      { "command": "difyForVscode.showSkills", "title": "Dify for VS Code: Show Workspace Skills" },
       { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
       { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
     ],
@@ -90,6 +92,25 @@
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum Dify/tool loop steps for one top-level request."
+        },
+        "difyForVscode.skillsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Discover and expose workspace SKILL.md/skill.md files to the Dify agent."
+        },
+        "difyForVscode.skillsMaxFiles": {
+          "type": "number",
+          "default": 200,
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Maximum number of workspace skill files discovered."
+        },
+        "difyForVscode.skillsMaxReadChars": {
+          "type": "number",
+          "default": 120000,
+          "minimum": 4000,
+          "maximum": 500000,
+          "description": "Maximum characters returned when reading one skill or skill resource."
         },
         "difyForVscode.contextManagerEnabled": {
           "type": "boolean",
@@ -243,7 +264,7 @@
   },
   "scripts": {
     "package": "vsce package",
-    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check contextManager.js && node --check officeCommon.js && node --check officePpt.js && node --check officePptDesign.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
+    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check skills.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check contextManager.js && node --check officeCommon.js && node --check officePpt.js && node --check officePptDesign.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
