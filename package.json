@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/lussifa/dify-for-vscode.git" },
