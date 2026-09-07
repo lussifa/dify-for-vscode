@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/lussifa/dify-for-vscode.git" },
@@ -42,7 +42,7 @@
       { "command": "difyForVscode.stopMcpServer", "title": "Dify for VS Code: Stop MCP Bridge Server" },
       { "command": "difyForVscode.copyMcpBridgeConfig", "title": "Dify for VS Code: Copy MCP Bridge Client Config" },
       { "command": "difyForVscode.configureEmbeddings", "title": "Dify for VS Code: Configure Semantic Embeddings" },
-      { "command": "difyForVscode.showSkills", "title": "Dify for VS Code: Manage Skills" },
+      { "command": "difyForVscode.showSkills", "title": "Dify for VS Code: Manage Skills", "icon": "$(tools)" },
       { "command": "difyForVscode.createSkill", "title": "Dify for VS Code: Create Skill" },
       { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
       { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
@@ -52,7 +52,8 @@
     "menus": {
       "view/title": [
         { "command": "difyForVscode.newChat", "when": "view == difyForVscode.chatView", "group": "navigation@1" },
-        { "command": "difyForVscode.configure", "when": "view == difyForVscode.chatView", "group": "navigation@2" }
+        { "command": "difyForVscode.configure", "when": "view == difyForVscode.chatView", "group": "navigation@2" },
+        { "command": "difyForVscode.showSkills", "when": "view == difyForVscode.chatView", "group": "navigation@3" }
       ]
     },
     "configuration": {
