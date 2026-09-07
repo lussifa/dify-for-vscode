@@ -5,6 +5,7 @@ const { CREW_TOOLS, initializeCrew, executeCrewTool } = require('./crew');
 const { OFFICE_TOOLS, OFFICE_MUTATING, isOfficeTool, executeOfficeTool } = require('./office');
 const { MCP_STATIC_TOOLS, getMcpTools, isMcpTool, isMcpMutating, executeMcpTool, refreshMcp, closeMcp, listMcpServers } = require('./mcp');
 const { initializeMcpServer, startMcpServer, stopMcpServer, statusMcpServer, getMcpBridgeConfig } = require('./mcpServer');
+const { SKILL_TOOLS, SKILL_NAMES, executeSkillTool, invalidateSkillCache } = require('./skills');
 
 const browserNames=new Set(BROWSER_TOOLS.map(t=>t.function.name));
 const semanticNames=new Set(SEMANTIC_TOOLS.map(t=>t.function.name));
@@ -24,6 +25,7 @@ function initializePlatform(context,options={}){
     getTools:async()=>options.getAllTools?options.getAllTools():[],
     executeTool:async(name,args)=>options.executeExternalTool?options.executeExternalTool(name,args):{success:false,error:'Bridge executor unavailable.'}
   });
+  context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(()=>invalidateSkillCache()));
 }
 
 async function getPlatformTools(config){
@@ -31,14 +33,16 @@ async function getPlatformTools(config){
     console.warn('[Dify for VS Code] MCP discovery failed',error);
     return MCP_STATIC_TOOLS;
   });
-  return [...BROWSER_TOOLS,...SEMANTIC_TOOLS,...CREW_TOOLS,...OFFICE_TOOLS,...mcp];
+  const skills=config.get('skillsEnabled',true)?SKILL_TOOLS:[];
+  return [...BROWSER_TOOLS,...SEMANTIC_TOOLS,...CREW_TOOLS,...OFFICE_TOOLS,...skills,...mcp];
 }
-function isPlatformTool(name){return browserNames.has(name)||semanticNames.has(name)||crewNames.has(name)||isOfficeTool(name)||isMcpTool(name);}
+function isPlatformTool(name){return browserNames.has(name)||semanticNames.has(name)||crewNames.has(name)||SKILL_NAMES.has(name)||isOfficeTool(name)||isMcpTool(name);}
 function isPlatformMutating(name){return BROWSER_MUTATING.has(name)||SEMANTIC_MUTATING.has(name)||OFFICE_MUTATING.has(name)||isMcpMutating(name);}
 async function executePlatformTool(name,args,config){
   if(browserNames.has(name))return executeBrowserTool(name,args,config);
   if(semanticNames.has(name))return executeSemanticTool(name,args,config);
   if(crewNames.has(name))return executeCrewTool(name,args,config);
+  if(SKILL_NAMES.has(name))return executeSkillTool(name,args,config);
   if(isOfficeTool(name))return executeOfficeTool(name,args,config);
   if(isMcpTool(name))return executeMcpTool(name,args,config);
   return {success:false,error:`Unknown platform tool: ${name}`};
