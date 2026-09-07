@@ -84,13 +84,70 @@ Three read-only tools are exposed to the model:
 
 Skill resources are sandboxed to their owning skill directory; `../` traversal is rejected. Global directory traversal also skips symbolic links, preventing recursive symlink loops or accidental traversal into unrelated trees.
 
-You can inspect discovery manually from the Command Palette with **Dify for VS Code: Show Skills**. The dialog shows separate workspace/global counts and labels each skill's source.
+## Skill manager UI
+
+Open the Command Palette and run **Dify for VS Code: Manage Skills**.
+
+The manager shows workspace and global skills together and provides these actions:
+
+- **Create Skill** — create a new workspace or global skill.
+- **Refresh Skills** — invalidate discovery metadata and rescan immediately.
+- **Skill Settings** — open the extension settings filtered to skill options.
+- **Open SKILL.md** — open a skill definition for editing.
+- **Reveal Skill Folder** — show the skill in the operating system file manager.
+- **Copy Skill ID** — copy the exact skill identifier used by `skills_read`.
+
+There is also a dedicated **Dify for VS Code: Create Skill** command.
+
+## Creating a skill
+
+The Create Skill flow asks for:
+
+1. A storage location.
+2. A short skill name.
+3. A description explaining when the agent should use it.
+
+Workspace skills created by the UI are placed under:
+
+```text
+<workspace>/.agents/skills/<skill-name>/SKILL.md
+```
+
+Global skills can be created under any directory listed in `difyForVscode.skillsGlobalDirectories`.
+
+The generated file contains frontmatter plus a small starter workflow and rules section. It is opened immediately after creation so you can refine the instructions.
+
+Names are normalized to lowercase slug form, for example:
+
+```text
+PowerPoint Maker -> powerpoint-maker
+Code Review     -> code-review
+```
+
+Creation refuses to overwrite an existing `SKILL.md` with the same name/location.
+
+## Automatic refresh
+
+Workspace skills use a VS Code file-system watcher. Creating, editing, renaming, or deleting `SKILL.md` / `skill.md` files invalidates the skill catalog immediately.
+
+Global skills live outside the workspace, so their metadata cache is invalidated periodically. The next agent request or manager refresh then rescans the configured global directories.
+
+The interval is controlled by:
+
+```text
+difyForVscode.skillsAutoRefreshMs
+```
+
+Default: `5000` ms. Minimum: `2000` ms.
+
+Skill-related setting changes and workspace-folder changes also invalidate the catalog automatically.
 
 ## Settings
 
 - `difyForVscode.skillsEnabled` — master skill support switch. Default: `true`.
 - `difyForVscode.skillsGlobalEnabled` — enable user-level global skill discovery. Default: `true`.
 - `difyForVscode.skillsGlobalDirectories` — global directories to scan. Default: `~/.dify-for-vscode/skills`, `~/.agents/skills`, `~/.claude/skills`.
+- `difyForVscode.skillsAutoRefreshMs` — global-skill refresh interval. Default: `5000`.
 - `difyForVscode.skillsMaxFiles` — maximum workspace + global skill files discovered in total. Default: `200`.
 - `difyForVscode.skillsMaxReadChars` — maximum characters returned from one skill/resource read. Default: `120000`.
 
@@ -109,5 +166,5 @@ The model can address a skill by ID, exact name, or path. Workspace skills are p
 
 - Workspace discovery excludes `node_modules`, `.git`, `.svn`, `.hg`, `dist`, `out`, `build`, `coverage`, and `vendor`.
 - Global discovery skips those directories as well and does not follow symbolic links.
-- Skills are read-only guidance. Mutating actions still go through the extension's normal local/platform tools and existing YOLO/approval policy.
-- The skill catalog is cached briefly for request efficiency and is invalidated when workspace folders or skill-related settings change.
+- Skills remain read-only guidance from the model's perspective. Creating a skill is an explicit user command in the VS Code UI; other mutations still go through the extension's normal local/platform tools and YOLO/approval policy.
+- The skill catalog is cached briefly for request efficiency and automatically invalidated by workspace skill changes, settings changes, workspace-folder changes, and the global refresh timer.
