@@ -2,22 +2,15 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "publisher": "lussifa",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/lussifa/dify-for-vscode.git"
-  },
-  "bugs": {
-    "url": "https://github.com/lussifa/dify-for-vscode/issues"
-  },
+  "repository": { "type": "git", "url": "https://github.com/lussifa/dify-for-vscode.git" },
+  "bugs": { "url": "https://github.com/lussifa/dify-for-vscode/issues" },
   "homepage": "https://github.com/lussifa/dify-for-vscode#readme",
-  "engines": {
-    "vscode": "^1.90.0"
-  },
+  "engines": { "vscode": "^1.90.0" },
   "categories": ["AI", "Other"],
-  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "presentation-design", "context-management", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search"],
+  "keywords": ["dify", "chatflow", "ai", "agent", "coding", "office", "powerpoint", "presentation-design", "context-management", "excel", "word", "pptx", "xlsx", "docx", "mcp", "multi-agent", "crewai", "playwright", "semantic-search", "skills"],
   "activationEvents": [
     "onView:difyForVscode.chatView",
     "onCommand:difyForVscode.configure",
@@ -30,6 +23,8 @@
     "onCommand:difyForVscode.showMcpStatus",
     "onCommand:difyForVscode.stopMcpServer",
     "onCommand:difyForVscode.copyMcpBridgeConfig",
+    "onCommand:difyForVscode.showSkills",
+    "onCommand:difyForVscode.createSkill",
     "onCommand:difyForVscode.buildSemanticIndex",
     "onCommand:difyForVscode.semanticIndexStatus"
   ],
@@ -47,19 +42,13 @@
       { "command": "difyForVscode.stopMcpServer", "title": "Dify for VS Code: Stop MCP Bridge Server" },
       { "command": "difyForVscode.copyMcpBridgeConfig", "title": "Dify for VS Code: Copy MCP Bridge Client Config" },
       { "command": "difyForVscode.configureEmbeddings", "title": "Dify for VS Code: Configure Semantic Embeddings" },
+      { "command": "difyForVscode.showSkills", "title": "Dify for VS Code: Manage Skills" },
+      { "command": "difyForVscode.createSkill", "title": "Dify for VS Code: Create Skill" },
       { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
       { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        { "id": "difyForVscode", "title": "Dify", "icon": "media/icon.svg" }
-      ]
-    },
-    "views": {
-      "difyForVscode": [
-        { "type": "webview", "id": "difyForVscode.chatView", "name": "Dify Agent Platform" }
-      ]
-    },
+    "viewsContainers": { "activitybar": [{ "id": "difyForVscode", "title": "Dify", "icon": "media/icon.svg" }] },
+    "views": { "difyForVscode": [{ "type": "webview", "id": "difyForVscode.chatView", "name": "Dify Agent Platform" }] },
     "menus": {
       "view/title": [
         { "command": "difyForVscode.newChat", "when": "view == difyForVscode.chatView", "group": "navigation@1" },
@@ -69,181 +58,46 @@
     "configuration": {
       "title": "Dify for VS Code",
       "properties": {
-        "difyForVscode.baseUrl": {
-          "type": "string",
-          "default": "http://127.0.0.1/v1",
-          "description": "Dify API base URL. Use the /v1 base, not /v1/chat-messages."
-        },
-        "difyForVscode.userId": {
-          "type": "string",
-          "default": "vscode-agent",
-          "description": "User identifier sent to Dify."
-        },
-        "difyForVscode.yoloMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically approve mutating local tools, browser actions, shell commands, Office writes and potentially mutating MCP tools."
-        },
-        "difyForVscode.maxAgentSteps": {
-          "type": "number",
-          "default": 40,
-          "minimum": 1,
-          "maximum": 100,
-          "description": "Maximum Dify/tool loop steps for one top-level request."
-        },
-        "difyForVscode.contextManagerEnabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Compact older completed tasks before sending messages to Dify while preserving recent detailed task context and the visible chat transcript."
-        },
-        "difyForVscode.contextRecentTasks": {
-          "type": "number",
-          "default": 2,
-          "minimum": 1,
-          "maximum": 8,
-          "description": "Number of recent top-level tasks kept with detailed execution context. Older tasks are summarized."
-        },
-        "difyForVscode.contextMaxChars": {
-          "type": "number",
-          "default": 120000,
-          "minimum": 20000,
-          "maximum": 1000000,
-          "description": "Approximate maximum serialized message characters sent to Dify after context compaction."
-        },
-        "difyForVscode.contextToolResultMaxChars": {
-          "type": "number",
-          "default": 12000,
-          "minimum": 1000,
-          "maximum": 100000,
-          "description": "Maximum characters retained for one tool result in outbound model context."
-        },
-        "difyForVscode.contextStoredToolResultMaxChars": {
-          "type": "number",
-          "default": 6000,
-          "minimum": 500,
-          "maximum": 50000,
-          "description": "Maximum tool-result characters retained in compacted workspace execution history."
-        },
-        "difyForVscode.contextSummaryMaxChars": {
-          "type": "number",
-          "default": 16000,
-          "minimum": 2000,
-          "maximum": 100000,
-          "description": "Maximum characters reserved for accumulated summaries of older completed tasks."
-        },
-        "difyForVscode.commandTimeoutMs": {
-          "type": "number",
-          "default": 120000,
-          "minimum": 1000,
-          "maximum": 600000,
-          "description": "Timeout for shell/patch/git tools."
-        },
-        "difyForVscode.checkUpdatesOnStartup": {
-          "type": "boolean",
-          "default": true,
-          "description": "Check GitHub Releases after extension startup."
-        },
-        "difyForVscode.browserChannel": {
-          "type": "string",
-          "enum": ["auto", "chrome", "msedge", "chromium"],
-          "default": "auto",
-          "description": "Browser channel used by Playwright Core. Auto tries installed Edge/Chrome first."
-        },
-        "difyForVscode.browserExecutablePath": {
-          "type": "string",
-          "default": "",
-          "description": "Optional explicit Chrome/Edge/Chromium executable path."
-        },
-        "difyForVscode.browserHeadless": {
-          "type": "boolean",
-          "default": false,
-          "description": "Run browser automation headlessly."
-        },
-        "difyForVscode.browserIgnoreHTTPSErrors": {
-          "type": "boolean",
-          "default": false,
-          "description": "Ignore HTTPS certificate errors in the managed browser context."
-        },
-        "difyForVscode.mcpServers": {
-          "type": "object",
-          "default": {},
-          "description": "MCP server map. Each entry supports enabled, transport (stdio/http/sse), command/args/env or url/headers, plus timeout fields. Header/env strings support ${env:NAME}."
-        },
-        "difyForVscode.mcpBridgeEnabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically start the local VS Code MCP bridge server."
-        },
-        "difyForVscode.mcpBridgePort": {
-          "type": "number",
-          "default": 8765,
-          "minimum": 1024,
-          "maximum": 65535,
-          "description": "Local MCP bridge port (127.0.0.1 only)."
-        },
-        "difyForVscode.mcpBridgeRequireToken": {
-          "type": "boolean",
-          "default": true,
-          "description": "Require a generated bearer token for the local MCP bridge."
-        },
-        "difyForVscode.semanticEmbeddingBaseUrl": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI-compatible embeddings base URL, e.g. http://127.0.0.1:11434/v1. Empty uses local code-aware hash vectors."
-        },
-        "difyForVscode.semanticEmbeddingModel": {
-          "type": "string",
-          "default": "",
-          "description": "Embedding model name, e.g. nomic-embed-text or text-embedding-3-small."
-        },
-        "difyForVscode.semanticIndexMaxFiles": {
-          "type": "number",
-          "default": 2500,
-          "minimum": 1,
-          "maximum": 10000,
-          "description": "Maximum files indexed in a semantic index build."
-        },
-        "difyForVscode.semanticChunkChars": {
-          "type": "number",
-          "default": 3500,
-          "minimum": 800,
-          "maximum": 12000,
-          "description": "Approximate characters per semantic chunk."
-        },
-        "difyForVscode.semanticChunkOverlapChars": {
-          "type": "number",
-          "default": 500,
-          "minimum": 0,
-          "maximum": 3000,
-          "description": "Approximate character overlap between semantic chunks."
-        },
-        "difyForVscode.crewTaskMaxSteps": {
-          "type": "number",
-          "default": 14,
-          "minimum": 1,
-          "maximum": 40,
-          "description": "Default maximum steps for each Crew sub-agent task."
-        },
-        "difyForVscode.crewMaxParallelTasks": {
-          "type": "number",
-          "default": 3,
-          "minimum": 1,
-          "maximum": 8,
-          "description": "Maximum concurrently executing async Crew tasks. Mutating tool calls are serialized."
-        },
-        "difyForVscode.crewMaxReviewCycles": {
-          "type": "number",
-          "default": 2,
-          "minimum": 0,
-          "maximum": 5,
-          "description": "Maximum automatic implementation fix -> reviewer recheck cycles after a reviewer reports FAIL."
-        }
+        "difyForVscode.baseUrl": { "type": "string", "default": "http://127.0.0.1/v1", "description": "Dify API base URL. Use the /v1 base, not /v1/chat-messages." },
+        "difyForVscode.userId": { "type": "string", "default": "vscode-agent", "description": "User identifier sent to Dify." },
+        "difyForVscode.yoloMode": { "type": "boolean", "default": false, "description": "Automatically approve mutating local tools, browser actions, shell commands, Office writes and potentially mutating MCP tools." },
+        "difyForVscode.maxAgentSteps": { "type": "number", "default": 40, "minimum": 1, "maximum": 100, "description": "Maximum Dify/tool loop steps for one top-level request." },
+        "difyForVscode.skillsEnabled": { "type": "boolean", "default": true, "description": "Discover and expose workspace and optional global SKILL.md/skill.md files to the Dify agent." },
+        "difyForVscode.skillsGlobalEnabled": { "type": "boolean", "default": true, "description": "Discover user-level skills from the configured global skill directories. Workspace skills with the same name take precedence." },
+        "difyForVscode.skillsGlobalDirectories": { "type": "array", "items": { "type": "string" }, "default": ["~/.dify-for-vscode/skills", "~/.agents/skills", "~/.claude/skills"], "description": "User-level directories recursively scanned for SKILL.md/skill.md files. Paths beginning with ~ are expanded to the current user's home directory." },
+        "difyForVscode.skillsAutoRefreshMs": { "type": "number", "default": 5000, "minimum": 2000, "maximum": 60000, "description": "Refresh interval for global skill metadata. Workspace SKILL.md changes are watched immediately." },
+        "difyForVscode.skillsMaxFiles": { "type": "number", "default": 200, "minimum": 1, "maximum": 1000, "description": "Maximum number of workspace and global skill files discovered in total." },
+        "difyForVscode.skillsMaxReadChars": { "type": "number", "default": 120000, "minimum": 4000, "maximum": 500000, "description": "Maximum characters returned when reading one skill or skill resource." },
+        "difyForVscode.contextManagerEnabled": { "type": "boolean", "default": true, "description": "Compact older completed tasks before sending messages to Dify while preserving recent detailed task context and the visible chat transcript." },
+        "difyForVscode.contextRecentTasks": { "type": "number", "default": 2, "minimum": 1, "maximum": 8, "description": "Number of recent top-level tasks kept with detailed execution context. Older tasks are summarized." },
+        "difyForVscode.contextMaxChars": { "type": "number", "default": 120000, "minimum": 20000, "maximum": 1000000, "description": "Approximate maximum serialized message characters sent to Dify after context compaction." },
+        "difyForVscode.contextToolResultMaxChars": { "type": "number", "default": 12000, "minimum": 1000, "maximum": 100000, "description": "Maximum characters retained for one tool result in outbound model context." },
+        "difyForVscode.contextStoredToolResultMaxChars": { "type": "number", "default": 6000, "minimum": 500, "maximum": 50000, "description": "Maximum tool-result characters retained in compacted workspace execution history." },
+        "difyForVscode.contextSummaryMaxChars": { "type": "number", "default": 16000, "minimum": 2000, "maximum": 100000, "description": "Maximum characters reserved for accumulated summaries of older completed tasks." },
+        "difyForVscode.commandTimeoutMs": { "type": "number", "default": 120000, "minimum": 1000, "maximum": 600000, "description": "Timeout for shell/patch/git tools." },
+        "difyForVscode.checkUpdatesOnStartup": { "type": "boolean", "default": true, "description": "Check GitHub Releases after extension startup." },
+        "difyForVscode.browserChannel": { "type": "string", "enum": ["auto", "chrome", "msedge", "chromium"], "default": "auto", "description": "Browser channel used by Playwright Core. Auto tries installed Edge/Chrome first." },
+        "difyForVscode.browserExecutablePath": { "type": "string", "default": "", "description": "Optional explicit Chrome/Edge/Chromium executable path." },
+        "difyForVscode.browserHeadless": { "type": "boolean", "default": false, "description": "Run browser automation headlessly." },
+        "difyForVscode.browserIgnoreHTTPSErrors": { "type": "boolean", "default": false, "description": "Ignore HTTPS certificate errors in the managed browser context." },
+        "difyForVscode.mcpServers": { "type": "object", "default": {}, "description": "MCP server map. Each entry supports enabled, transport (stdio/http/sse), command/args/env or url/headers, plus timeout fields. Header/env strings support ${env:NAME}." },
+        "difyForVscode.mcpBridgeEnabled": { "type": "boolean", "default": false, "description": "Automatically start the local VS Code MCP bridge server." },
+        "difyForVscode.mcpBridgePort": { "type": "number", "default": 8765, "minimum": 1024, "maximum": 65535, "description": "Local MCP bridge port (127.0.0.1 only)." },
+        "difyForVscode.mcpBridgeRequireToken": { "type": "boolean", "default": true, "description": "Require a generated bearer token for the local MCP bridge." },
+        "difyForVscode.semanticEmbeddingBaseUrl": { "type": "string", "default": "", "description": "OpenAI-compatible embeddings base URL, e.g. http://127.0.0.1:11434/v1. Empty uses local code-aware hash vectors." },
+        "difyForVscode.semanticEmbeddingModel": { "type": "string", "default": "", "description": "Embedding model name, e.g. nomic-embed-text or text-embedding-3-small." },
+        "difyForVscode.semanticIndexMaxFiles": { "type": "number", "default": 2500, "minimum": 1, "maximum": 10000, "description": "Maximum files indexed in a semantic index build." },
+        "difyForVscode.semanticChunkChars": { "type": "number", "default": 3500, "minimum": 800, "maximum": 12000, "description": "Approximate characters per semantic chunk." },
+        "difyForVscode.semanticChunkOverlapChars": { "type": "number", "default": 500, "minimum": 0, "maximum": 3000, "description": "Approximate character overlap between semantic chunks." },
+        "difyForVscode.crewTaskMaxSteps": { "type": "number", "default": 14, "minimum": 1, "maximum": 40, "description": "Default maximum steps for each Crew sub-agent task." },
+        "difyForVscode.crewMaxParallelTasks": { "type": "number", "default": 3, "minimum": 1, "maximum": 8, "description": "Maximum concurrently executing async Crew tasks. Mutating tool calls are serialized." },
+        "difyForVscode.crewMaxReviewCycles": { "type": "number", "default": 2, "minimum": 0, "maximum": 5, "description": "Maximum automatic implementation fix -> reviewer recheck cycles after a reviewer reports FAIL." }
       }
     }
   },
   "scripts": {
     "package": "vsce package",
-    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check contextManager.js && node --check officeCommon.js && node --check officePpt.js && node --check officePptDesign.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
+    "check": "node --check platform-entry.js && node --check extension.js && node --check compat.js && node --check tools.js && node --check localTools.js && node --check platform.js && node --check skills.js && node --check skillManager.js && node --check agentRuntime.js && node --check browser.js && node --check mcp.js && node --check mcpServer.js && node --check semantic.js && node --check crew.js && node --check contextManager.js && node --check officeCommon.js && node --check officePpt.js && node --check officePptDesign.js && node --check officeExcel.js && node --check officeWord.js && node --check office.js"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
@@ -255,7 +109,5 @@
     "docx": "^9.7.1",
     "mammoth": "^1.12.1"
   },
-  "devDependencies": {
-    "@vscode/vsce": "^3.6.0"
-  }
+  "devDependencies": { "@vscode/vsce": "^3.6.0" }
 }

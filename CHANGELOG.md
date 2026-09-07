@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0
+
+- Add first-class reusable Skill support based on `SKILL.md` / `skill.md`
+- Discover workspace skills anywhere in the open VS Code workspace
+- Discover global skills from `~/.dify-for-vscode/skills`, `~/.agents/skills`, and `~/.claude/skills`
+- Allow custom global skill directories through `difyForVscode.skillsGlobalDirectories`
+- Make workspace skills override global skills with the same name
+- Add compact skill catalog injection so the model sees metadata without loading every full skill into context
+- Add read-only `skills_list`, `skills_read`, and `skills_read_resource` tools
+- Restrict skill resource reads to the owning skill directory and reject path traversal
+- Add automatic workspace skill refresh using VS Code file watchers
+- Add configurable global skill metadata refresh through `skillsAutoRefreshMs`
+- Add **Dify for VS Code: Manage Skills** with searchable workspace/global skill entries
+- Add skill actions to open `SKILL.md`, reveal folders, copy exact Skill IDs, refresh discovery, and open Skill settings
+- Add **Dify for VS Code: Create Skill** with guided workspace/global location selection
+- Generate starter Skill frontmatter, purpose, workflow, and rules without overwriting existing skills
+- Open newly created `SKILL.md` files immediately for editing
+- Add `SKILLS.md` documentation covering discovery, precedence, management, creation, refresh behavior, and settings
+- Extend the existing syntax-check chain to validate `skills.js` and `skillManager.js`
+
 ## 0.3.3
 
 - Add a task-aware Context Manager for top-level Dify conversations
