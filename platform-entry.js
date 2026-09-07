@@ -9,6 +9,7 @@ const {
 } = require('./platform');
 const { initializeAgentRuntime, runSubAgent, executeToolWithApproval } = require('./agentRuntime');
 const { executeSemanticTool } = require('./semantic');
+const { getSkillContext, getSkillCatalog, invalidateSkillCache } = require('./skills');
 
 let extensionContext;
 
@@ -31,14 +32,33 @@ globalThis.fetch = async function platformAwareFetch(input, init = {}) {
   try { body = JSON.parse(init.body); } catch { return compatFetch(input, init); }
   if (String(body.user || '').includes(':crew:')) return compatFetch(input, init);
   try {
+    const config = vscode.workspace.getConfiguration('difyForVscode');
     const existing = JSON.parse(body.inputs?.tools || '[]');
-    const platform = await getPlatformTools(vscode.workspace.getConfiguration('difyForVscode'));
+    const platform = await getPlatformTools(config);
     const seen = new Set(existing.map(t => t?.function?.name).filter(Boolean));
     const merged = [...existing, ...platform.filter(t => t?.function?.name && !seen.has(t.function.name))];
-    body.inputs = { ...(body.inputs || {}), tools: JSON.stringify(merged) };
+    const inputs = { ...(body.inputs || {}), tools: JSON.stringify(merged) };
+
+    if (config.get('skillsEnabled', true)) {
+      const skillContext = await getSkillContext(config);
+      if (skillContext) {
+        let messages = [];
+        try { messages = JSON.parse(inputs.messages || '[]'); } catch {}
+        if (Array.isArray(messages)) {
+          const marker = '[Dify for VS Code workspace skills]';
+          const skillMessage = { role: 'system', content: `${marker}\n${skillContext}` };
+          const existingIndex = messages.findIndex(m => m?.role === 'system' && String(m?.content || '').startsWith(marker));
+          if (existingIndex >= 0) messages[existingIndex] = skillMessage;
+          else messages.unshift(skillMessage);
+          inputs.messages = JSON.stringify(messages);
+        }
+      }
+    }
+
+    body.inputs = inputs;
     return compatFetch(input, { ...init, body: JSON.stringify(body) });
   } catch (error) {
-    console.warn('[Dify for VS Code] platform tool injection failed', error);
+    console.warn('[Dify for VS Code] platform/skill injection failed', error);
     return compatFetch(input, init);
   }
 };
@@ -61,6 +81,16 @@ function activate(context) {
     vscode.commands.registerCommand('difyForVscode.stopMcpServer', stopBridgeCommand),
     vscode.commands.registerCommand('difyForVscode.copyMcpBridgeConfig', copyBridgeConfig),
     vscode.commands.registerCommand('difyForVscode.configureEmbeddings', configureEmbeddings),
+    vscode.commands.registerCommand('difyForVscode.showSkills', async () => {
+      const config = vscode.workspace.getConfiguration('difyForVscode');
+      invalidateSkillCache();
+      const skills = await getSkillCatalog(config);
+      const text = skills.length
+        ? skills.map(s => `${s.name}\n${s.description || '(no description)'}\n${s.path}`).join('\n\n')
+        : 'No SKILL.md/skill.md files were found in the current workspace.';
+      vscode.window.showInformationMessage(text, { modal: true });
+      return skills;
+    }),
     vscode.commands.registerCommand('difyForVscode.buildSemanticIndex', async () => {
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Building semantic workspace index', cancellable: false }, async () => {
         const result = await executeSemanticTool('semantic_index_build', {}, vscode.workspace.getConfiguration('difyForVscode'));
