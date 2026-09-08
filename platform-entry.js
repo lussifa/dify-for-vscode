@@ -10,7 +10,7 @@ const {
 const { initializeAgentRuntime, runSubAgent, executeToolWithApproval } = require('./agentRuntime');
 const { executeSemanticTool } = require('./semantic');
 const { getSkillContext } = require('./skills');
-const { initializeSkillManager, showSkillManager, createSkill } = require('./skillManager');
+const { initializeSkillManager, showSkillManager, createSkill, installSkillFromZip } = require('./skillManager');
 
 let extensionContext;
 
@@ -85,6 +85,7 @@ function activate(context) {
     vscode.commands.registerCommand('difyForVscode.configureEmbeddings', configureEmbeddings),
     vscode.commands.registerCommand('difyForVscode.showSkills', showSkillManager),
     vscode.commands.registerCommand('difyForVscode.createSkill', createSkill),
+    vscode.commands.registerCommand('difyForVscode.installSkill', installSkillFromZip),
     vscode.commands.registerCommand('difyForVscode.buildSemanticIndex', async () => {
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Building semantic workspace index', cancellable: false }, async () => {
         const result = await executeSemanticTool('semantic_index_build', {}, vscode.workspace.getConfiguration('difyForVscode'));
