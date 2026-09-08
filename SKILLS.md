@@ -91,13 +91,63 @@ Open the Command Palette and run **Dify for VS Code: Manage Skills**.
 The manager shows workspace and global skills together and provides these actions:
 
 - **Create Skill** — create a new workspace or global skill.
+- **Install Skill from ZIP** — choose and install a standard single-skill `.zip` package.
 - **Refresh Skills** — invalidate discovery metadata and rescan immediately.
 - **Skill Settings** — open the extension settings filtered to skill options.
 - **Open SKILL.md** — open a skill definition for editing.
 - **Reveal Skill Folder** — show the skill in the operating system file manager.
 - **Copy Skill ID** — copy the exact skill identifier used by `skills_read`.
 
-There is also a dedicated **Dify for VS Code: Create Skill** command.
+There are also dedicated **Dify for VS Code: Create Skill** and **Dify for VS Code: Install Skill from ZIP** commands. Both **Manage Skills** and **Install Skill from ZIP** are available from the Dify sidebar title toolbar.
+
+## Installing a skill ZIP
+
+Use **Dify for VS Code: Install Skill from ZIP** from the Command Palette, the Dify sidebar title toolbar, or the Skill Manager.
+
+The installer accepts a standard ZIP containing exactly one skill entrypoint:
+
+```text
+my-skill.zip
+  my-skill/
+    SKILL.md
+    agents/
+      openai.yaml
+    scripts/
+    references/
+    assets/
+```
+
+A ZIP with the skill files directly at archive root is also supported:
+
+```text
+skill.zip
+  SKILL.md
+  agents/
+  scripts/
+  references/
+  assets/
+```
+
+Installation flow:
+
+1. Select the local `.zip` file.
+2. The extension validates the archive before writing anything.
+3. Choose a workspace or configured global skill location.
+4. If the same skill already exists there, explicitly confirm replacement.
+5. The complete skill bundle is extracted and the skill catalog is refreshed immediately.
+
+The install name comes from `name:` in the `SKILL.md` frontmatter when available. Otherwise it falls back to the skill folder or ZIP filename and is normalized to lowercase slug form.
+
+Safety checks include:
+
+- Exactly one `SKILL.md` / `skill.md` entrypoint per ZIP.
+- Maximum compressed ZIP size: 25 MB.
+- Maximum declared/extracted content size: 100 MB.
+- Maximum ZIP entries: 2000.
+- Reject absolute paths and `..` path traversal.
+- Reject archive files outside the detected single-skill root.
+- Ignore common macOS packaging metadata such as `__MACOSX` and `.DS_Store`.
+- Files are written as normal files rather than restoring ZIP symlink metadata.
 
 ## Creating a skill
 
@@ -166,5 +216,5 @@ The model can address a skill by ID, exact name, or path. Workspace skills are p
 
 - Workspace discovery excludes `node_modules`, `.git`, `.svn`, `.hg`, `dist`, `out`, `build`, `coverage`, and `vendor`.
 - Global discovery skips those directories as well and does not follow symbolic links.
-- Skills remain read-only guidance from the model's perspective. Creating a skill is an explicit user command in the VS Code UI; other mutations still go through the extension's normal local/platform tools and YOLO/approval policy.
-- The skill catalog is cached briefly for request efficiency and automatically invalidated by workspace skill changes, settings changes, workspace-folder changes, and the global refresh timer.
+- Skills remain read-only guidance from the model's perspective. Creating or installing a skill is an explicit user command in the VS Code UI; other mutations still go through the extension's normal local/platform tools and YOLO/approval policy.
+- The skill catalog is cached briefly for request efficiency and automatically invalidated by workspace skill changes, settings changes, workspace-folder changes, the global refresh timer, and successful ZIP installs.

@@ -25,6 +25,7 @@
     "onCommand:difyForVscode.copyMcpBridgeConfig",
     "onCommand:difyForVscode.showSkills",
     "onCommand:difyForVscode.createSkill",
+    "onCommand:difyForVscode.installSkill",
     "onCommand:difyForVscode.buildSemanticIndex",
     "onCommand:difyForVscode.semanticIndexStatus"
   ],
@@ -44,6 +45,7 @@
       { "command": "difyForVscode.configureEmbeddings", "title": "Dify for VS Code: Configure Semantic Embeddings" },
       { "command": "difyForVscode.showSkills", "title": "Dify for VS Code: Manage Skills", "icon": "$(tools)" },
       { "command": "difyForVscode.createSkill", "title": "Dify for VS Code: Create Skill" },
+      { "command": "difyForVscode.installSkill", "title": "Dify for VS Code: Install Skill from ZIP", "icon": "$(cloud-download)" },
       { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
       { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
     ],
@@ -53,7 +55,8 @@
       "view/title": [
         { "command": "difyForVscode.newChat", "when": "view == difyForVscode.chatView", "group": "navigation@1" },
         { "command": "difyForVscode.configure", "when": "view == difyForVscode.chatView", "group": "navigation@2" },
-        { "command": "difyForVscode.showSkills", "when": "view == difyForVscode.chatView", "group": "navigation@3" }
+        { "command": "difyForVscode.showSkills", "when": "view == difyForVscode.chatView", "group": "navigation@3" },
+        { "command": "difyForVscode.installSkill", "when": "view == difyForVscode.chatView", "group": "navigation@4" }
       ]
     },
     "configuration": {
@@ -104,6 +107,7 @@
     "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@modelcontextprotocol/node": "^2.0.0",
+    "adm-zip": "^0.5.16",
     "playwright-core": "^1.62.1",
     "pptxgenjs": "^4.0.1",
     "exceljs": "^4.4.0",
