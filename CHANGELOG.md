@@ -6,6 +6,15 @@
 - Use the VS Code native `$(tools)` icon for the Skills entry
 - Open the existing **Dify for VS Code: Manage Skills** UI directly from the sidebar
 - Keep Command Palette access to **Manage Skills** and **Create Skill** unchanged
+- Add **Dify for VS Code: Install Skill from ZIP** to the Command Palette and Dify view-title toolbar
+- Add **Install Skill from ZIP** inside the Skill Manager
+- Accept a standard single-skill `.zip` containing exactly one `SKILL.md` / `skill.md` entrypoint
+- Let the user install the ZIP into a workspace or configured global skill directory
+- Preserve all files inside the skill bundle, including `agents/`, `scripts/`, `references/`, and `assets/`
+- Detect the install name from `SKILL.md` frontmatter or the ZIP skill folder name
+- Prompt before replacing an existing skill in the selected location
+- Reject ZIP path traversal, multiple skill entrypoints, oversized archives, excessive entry counts, and files outside the detected skill root
+- Refresh the skill catalog immediately after installation
 
 ## 0.4.0
 
