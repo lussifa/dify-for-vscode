@@ -18,9 +18,9 @@ It combines:
 - approval controls and YOLO auto-approval
 - GitHub Release update checking
 
-The extension talks **directly to your Dify Chatflow**. Roo Code, Cline, Continue, Claude Code, or another middle layer is not required.
+The extension talks **directly to your Dify Chatflow** — or, in plain LLM mode, directly to any OpenAI-compatible chat completions API. Roo Code, Cline, Continue, Claude Code, or another middle layer is not required.
 
-> Current release: **v0.3.3**
+> Current release: **v0.4.2**
 
 ---
 
@@ -212,6 +212,50 @@ https://dify.example.com/v1
 ```
 
 The extension appends `/chat-messages` itself. The API key is stored in VS Code SecretStorage.
+
+---
+
+# 4.1 Plain LLM mode — v0.4.2
+
+The extension can bypass the Dify Chatflow entirely and call any **OpenAI-compatible `chat/completions` endpoint** directly. Local tools, the Context Manager, skills injection, approvals and YOLO mode keep working unchanged.
+
+## Toggle
+
+Click the **LLM** button next to **YOLO** in the sidebar, or run:
+
+```text
+Dify for VS Code: Toggle Plain LLM Mode
+```
+
+When LLM mode is enabled the sidebar title changes to **LLM Agent**. Click the button again (or run the command again) to switch back to Dify mode.
+
+## First-time configuration
+
+Run:
+
+```text
+Dify for VS Code: Configure LLM
+```
+
+or just toggle LLM mode on and follow the prompts:
+
+```text
+LLM Base URL: https://api.openai.com/v1   (or http://127.0.0.1:11434/v1 for Ollama)
+LLM Model:    gpt-4o-mini / deepseek-chat / qwen-plus / ...
+LLM API Key:  stored in VS Code SecretStorage, separate from the Dify key
+```
+
+Settings:
+
+| Setting | Default | Purpose |
+| --- | ---: | --- |
+| `difyForVscode.llmMode` | `false` | Bypass Dify and call the plain LLM |
+| `difyForVscode.llmBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible base URL (`/v1`, not `/v1/chat/completions`) |
+| `difyForVscode.llmModel` | `gpt-4o-mini` | Model name |
+| `difyForVscode.llmTemperature` | `0.2` | Sampling temperature |
+| `difyForVscode.llmSystemPrompt` | empty | Optional system prompt override; empty uses the built-in agent prompt |
+
+The tool schemas are sent in the standard OpenAI `tools` format, and the model's `tool_calls` are executed through the same approval pipeline as Dify mode.
 
 ---
 
@@ -917,6 +961,11 @@ visible chat -> retained separately
 | `difyForVscode.crewTaskMaxSteps` | `14` | Default Crew task budget |
 | `difyForVscode.crewMaxParallelTasks` | `3` | Parallel async Crew tasks |
 | `difyForVscode.crewMaxReviewCycles` | `2` | Automatic review/fix cycles |
+| `difyForVscode.llmMode` | `false` | Bypass Dify and call the plain LLM |
+| `difyForVscode.llmBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
+| `difyForVscode.llmModel` | `gpt-4o-mini` | Plain LLM model name |
+| `difyForVscode.llmTemperature` | `0.2` | Plain LLM sampling temperature |
+| `difyForVscode.llmSystemPrompt` | empty | Plain LLM system prompt override |
 
 ---
 
