@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/lussifa/dify-for-vscode.git" },
@@ -16,6 +16,8 @@
     "onCommand:difyForVscode.configure",
     "onCommand:difyForVscode.newChat",
     "onCommand:difyForVscode.toggleYolo",
+    "onCommand:difyForVscode.toggleLlm",
+    "onCommand:difyForVscode.configureLlm",
     "onCommand:difyForVscode.checkUpdates",
     "onCommand:difyForVscode.refreshMcp",
     "onCommand:difyForVscode.startMcpServer",
@@ -36,6 +38,8 @@
       { "command": "difyForVscode.configure", "title": "Dify for VS Code: Configure", "icon": "$(gear)" },
       { "command": "difyForVscode.newChat", "title": "Dify for VS Code: New Chat", "icon": "$(add)" },
       { "command": "difyForVscode.toggleYolo", "title": "Dify for VS Code: Toggle YOLO Mode" },
+      { "command": "difyForVscode.toggleLlm", "title": "Dify for VS Code: Toggle Plain LLM Mode" },
+      { "command": "difyForVscode.configureLlm", "title": "Dify for VS Code: Configure LLM" },
       { "command": "difyForVscode.checkUpdates", "title": "Dify for VS Code: Check for Updates" },
       { "command": "difyForVscode.refreshMcp", "title": "Dify for VS Code: Refresh MCP Servers" },
       { "command": "difyForVscode.showMcpStatus", "title": "Dify for VS Code: Show MCP Status" },
@@ -95,7 +99,12 @@
         "difyForVscode.semanticChunkOverlapChars": { "type": "number", "default": 500, "minimum": 0, "maximum": 3000, "description": "Approximate character overlap between semantic chunks." },
         "difyForVscode.crewTaskMaxSteps": { "type": "number", "default": 14, "minimum": 1, "maximum": 40, "description": "Default maximum steps for each Crew sub-agent task." },
         "difyForVscode.crewMaxParallelTasks": { "type": "number", "default": 3, "minimum": 1, "maximum": 8, "description": "Maximum concurrently executing async Crew tasks. Mutating tool calls are serialized." },
-        "difyForVscode.crewMaxReviewCycles": { "type": "number", "default": 2, "minimum": 0, "maximum": 5, "description": "Maximum automatic implementation fix -> reviewer recheck cycles after a reviewer reports FAIL." }
+        "difyForVscode.crewMaxReviewCycles": { "type": "number", "default": 2, "minimum": 0, "maximum": 5, "description": "Maximum automatic implementation fix -> reviewer recheck cycles after a reviewer reports FAIL." },
+        "difyForVscode.llmMode": { "type": "boolean", "default": false, "description": "Bypass the Dify Chatflow and call an OpenAI-compatible chat completions LLM directly. The same local tools, Context Manager, approvals and YOLO still apply." },
+        "difyForVscode.llmBaseUrl": { "type": "string", "default": "https://api.openai.com/v1", "description": "OpenAI-compatible LLM API base URL. Use the /v1 base, not /v1/chat/completions." },
+        "difyForVscode.llmModel": { "type": "string", "default": "gpt-4o-mini", "description": "LLM model name, e.g. gpt-4o-mini, deepseek-chat or qwen-plus." },
+        "difyForVscode.llmTemperature": { "type": "number", "default": 0.2, "minimum": 0, "maximum": 2, "description": "Sampling temperature for the plain LLM mode." },
+        "difyForVscode.llmSystemPrompt": { "type": "string", "default": "", "description": "Optional system prompt override for plain LLM mode. Empty uses the built-in agent prompt." }
       }
     }
   },
