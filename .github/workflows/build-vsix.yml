@@ -26,6 +26,7 @@ jobs:
       - name: Validate extension and runtime dependencies
         run: |
           npm run check
+          node scripts/llm-mode-smoke.js
           node --input-type=module - <<'NODE'
           import * as client from '@modelcontextprotocol/client';
           import * as server from '@modelcontextprotocol/server';

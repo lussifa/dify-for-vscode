@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.2
+
+- Add a plain LLM mode that bypasses the Dify Chatflow and calls any OpenAI-compatible `chat/completions` endpoint directly
+- Add an LLM toggle button next to YOLO in the Dify sidebar, plus `Dify for VS Code: Toggle Plain LLM Mode` and `Dify for VS Code: Configure LLM` commands
+- Add `llmMode`, `llmBaseUrl`, `llmModel`, `llmTemperature` and `llmSystemPrompt` settings; the LLM API key is stored separately in VS Code SecretStorage
+- Reuse the full local + platform tool set, Context Manager, skills injection, per-action approvals and YOLO mode in plain LLM mode
+- Convert the internal conversation history to the OpenAI message/tool format and parse standard `tool_calls` responses, including `finish_reason: length` truncation handling
+- Strip common `<thinking>` reasoning wrappers from plain LLM responses
+- Add `scripts/llm-mode-smoke.js` protocol smoke tests and wire them into CI
+
 ## 0.4.1
 
 - Add a visible Skills toolbar button to the Dify sidebar view title
