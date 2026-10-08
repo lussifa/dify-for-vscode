@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- Replace the single-file Create Skill flow with a 4-step wizard that asks for **Location → Template → Name → Description**
+- Ship four built-in templates: `Minimal` (just `SKILL.md`, equivalent to the legacy flow), `Document Skill` (adds `references/` + `assets/`), `Tool Skill` (adds a runnable `scripts/hello.js`), and `Full Bundle` (also adds `agents/`)
+- Every multi-file template drops a `README.md` into each sub-directory explaining the local convention; the bundled `scripts/hello.js` is a real runnable Node script that prints `hello, <name>`
+- The generated `SKILL.md` for multi-file templates now includes a **Sub-resources** section listing the sub-directories, so the model knows which `skills_read_resource` calls are valid before reading anything
+- Roll back every file written so far if a multi-file write fails partway through — users never see a half-built skill
+- Keep the existing replacement-protection check (refuse to overwrite an existing `SKILL.md` with the same name/location)
+- Add `scripts/test-skill-templates.js` smoke tests that mock the `vscode` module and assert every template's directory tree, frontmatter, and that `hello.js` actually executes
+
 ## 0.4.2
 
 - Add a plain LLM mode that bypasses the Dify Chatflow and calls any OpenAI-compatible `chat/completions` endpoint directly
