@@ -20,7 +20,7 @@ It combines:
 
 The extension talks **directly to your Dify Chatflow** — or, in plain LLM mode, directly to any OpenAI-compatible chat completions API. Roo Code, Cline, Continue, Claude Code, or another middle layer is not required.
 
-> Current release: **v0.4.2**
+> Current release: **v0.5.0**
 
 ---
 

@@ -21,8 +21,120 @@ function slugify(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 function escapeFrontmatter(value) { return String(value || '').replace(/\r?\n/g, ' ').replace(/"/g, '\\"').trim(); }
-function skillTemplate(name, description) {
+
+// ===== Skill template catalog =====
+// Each template is a function (name, description) -> { files: [{ relPath, content }] }
+// Files are written under the skill directory in order; existing files are never overwritten.
+const SKILL_TEMPLATES = {
+  minimal: {
+    label: '$(file-text) Minimal',
+    description: 'Just SKILL.md — equivalent to the legacy single-file flow',
+    files: (name, description) => ([
+      { relPath: 'SKILL.md', content: minimalSkillMarkdown(name, description) }
+    ])
+  },
+  document: {
+    label: '$(book) Document Skill',
+    description: 'SKILL.md + references/ for long-form docs + assets/ for icons or screenshots',
+    files: (name, description) => ([
+      { relPath: 'SKILL.md', content: multiFileSkillMarkdown(name, description, ['references']) },
+      { relPath: 'references/README.md', content: referencesReadme(name) },
+      { relPath: 'references/example.md', content: exampleReference(name) },
+      { relPath: 'assets/README.md', content: assetsReadme() }
+    ])
+  },
+  tool: {
+    label: '$(tools) Tool Skill',
+    description: 'SKILL.md + references/ + scripts/ (with a runnable hello.js) + assets/',
+    files: (name, description) => ([
+      { relPath: 'SKILL.md', content: multiFileSkillMarkdown(name, description, ['references', 'scripts']) },
+      { relPath: 'references/README.md', content: referencesReadme(name) },
+      { relPath: 'references/example.md', content: exampleReference(name) },
+      { relPath: 'scripts/README.md', content: scriptsReadme() },
+      { relPath: 'scripts/hello.js', content: helloJs() },
+      { relPath: 'assets/README.md', content: assetsReadme() }
+    ])
+  },
+  full: {
+    label: '$(package) Full Bundle',
+    description: 'SKILL.md + references/ + scripts/ + agents/ + assets/ (everything)',
+    files: (name, description) => ([
+      { relPath: 'SKILL.md', content: multiFileSkillMarkdown(name, description, ['references', 'scripts', 'agents']) },
+      { relPath: 'references/README.md', content: referencesReadme(name) },
+      { relPath: 'references/example.md', content: exampleReference(name) },
+      { relPath: 'scripts/README.md', content: scriptsReadme() },
+      { relPath: 'scripts/hello.js', content: helloJs() },
+      { relPath: 'agents/README.md', content: agentsReadme() },
+      { relPath: 'assets/README.md', content: assetsReadme() }
+    ])
+  }
+};
+
+function minimalSkillMarkdown(name, description) {
   return `---\nname: ${name}\ndescription: "${escapeFrontmatter(description)}"\n---\n\n# ${name}\n\n## Purpose\n\n${description || 'Describe when this skill should be used.'}\n\n## Workflow\n\n1. Understand the user request and confirm this skill applies.\n2. Gather the required context and use available tools when needed.\n3. Produce the requested result and verify important outputs.\n\n## Rules\n\n- Do not invent tool results.\n- Keep changes scoped to the user request.\n- Reuse existing project conventions where possible.\n`;
+}
+
+// SKILL.md body used by multi-file templates. It instructs the model on which
+// sub-resources exist, so skills_read_resource calls are predictable.
+function multiFileSkillMarkdown(name, description, subDirs) {
+  const subs = subDirs.map(d => `- \`${d}/\` — ${subDirHint(d)}`).join('\n');
+  return `---\nname: ${name}\ndescription: "${escapeFrontmatter(description)}"\n---\n\n# ${name}\n\n## Purpose\n\n${description || 'Describe when this skill should be used.'}\n\n## Sub-resources\n\nThis skill is a multi-file bundle. Read the matching sub-resource before answering.\n\n${subs}\n\nThe discovery layer exposes \`skills_read_resource\` for any UTF-8 text file in this skill directory.\n\n## Workflow\n\n1. Understand the user request and confirm this skill applies.\n2. Use \`skills_read\` to load this entrypoint when triggered.\n3. Use \`skills_read_resource\` to load referenced files only when the workflow calls for them — do not pre-load everything.\n4. Produce the requested result and verify important outputs.\n\n## Rules\n\n- Do not invent tool results.\n- Keep changes scoped to the user request.\n- Reuse existing project conventions where possible.\n- \`scripts/\` may contain runnable code — invoke it instead of re-implementing the logic.\n`;
+}
+
+function subDirHint(d) {
+  switch (d) {
+    case 'references': return 'long-form reference docs the model can `skills_read_resource` on demand';
+    case 'scripts': return 'runnable scripts the model can invoke via its existing tool execution path';
+    case 'agents': return 'auxiliary spec or manifest files; see `agents/README.md` for the local convention';
+    case 'assets': return 'binary attachments (icons, screenshots, sample files) — read by path, not as text';
+    default: return 'skill sub-resource bundle';
+  }
+}
+
+function referencesReadme(name) {
+  return `# ${name} — references\n\nDrop long-form reference material here (one Markdown file per topic). The model calls \`skills_read_resource\` with the relative path, so prefer small, single-topic files over monolithic ones.\n\nSuggested conventions:\n\n- One file per concept, named in lowercase-kebab-case.\n- Frontmatter is optional; if present, keep it minimal.\n- Reference this file from the parent \`SKILL.md\` so the model knows it exists.\n\nSee \`example.md\` in this folder for a starter.\n`;
+}
+
+function exampleReference(name) {
+  return `# Example reference for ${name}\n\nReplace this with real content. The model will only see this file if \`SKILL.md\` (or another file the model has already loaded) points at it, so make the connection explicit.\n\n## When to read this\n\nDescribe the trigger phrase or task shape that should make the model reach for this file.\n\n## What it contains\n\nA short table of contents or a one-line summary is enough.\n`;
+}
+
+function scriptsReadme() {
+  return `# scripts\n\nDrop runnable scripts here. The model invokes them through its existing tool-execution path (e.g. \`run_command\` / \`execute_command\`), so:\n\n- Use the file extension that matches the language (\`.js\`, \`.py\`, \`.sh\`).\n- Make the script self-contained — it should not require dependencies that are not already in the user's environment.\n- Print to stdout; the model reads stdout back as the result.\n- Exit non-zero on failure so the model can branch.\n\nSee \`hello.js\` in this folder for a minimal runnable example.\n`;
+}
+
+function helloJs() {
+  return `#!/usr/bin/env node\n// Minimal runnable example for a Tool / Full skill.\n// Replace the body with the real logic your skill needs.\n\n'use strict';\n\nfunction main(argv) {\n  const name = (argv[2] || 'world').trim();\n  process.stdout.write(\`hello, \${name}\\n\`);\n  return 0;\n}\n\nif (require.main === module) {\n  process.exit(main(process.argv));\n}\n\nmodule.exports = { main };\n`;
+}
+
+function agentsReadme() {
+  return `# agents\n\nAuxiliary spec / manifest files for this skill. What goes here is up to the skill author — common uses:\n\n- Tool/prompt specs the model should be aware of.\n- Hook configurations for editor integration.\n- Pre-baked agent personas the skill spawns.\n\nThe discovery layer reads anything in this directory as a UTF-8 text resource. If you put binaries here, name them with a non-UTF-8 extension and update the resource list accordingly.\n\nThis file is purely a convention marker — delete it once you add real content.\n`;
+}
+
+function assetsReadme() {
+  return `# assets\n\nDrop binary or near-binary attachments here: icons, screenshots, sample data files, etc.\n\n- The model cannot \`skills_read_resource\` these as text — point the model at a path and let it use its normal file-reading tool.\n- Keep file sizes small; the \`difyForVscode.skillsMaxReadChars\` setting caps how much text the discovery layer will ever return.\n- Naming: lowercase-kebab-case + extension (\`diagram-overview.png\`, \`sample-input.json\`).\n\nThis file is purely a convention marker — delete it once you add real content.\n`;
+}
+
+async function applySkillTemplate(skillDir, templateId, name, description) {
+  const template = SKILL_TEMPLATES[templateId] || SKILL_TEMPLATES.minimal;
+  // Track which files were actually written so we can roll back on partial failure.
+  const written = [];
+  try {
+    for (const file of template.files(name, description)) {
+      const target = vscode.Uri.joinPath(skillDir, ...file.relPath.split('/').filter(Boolean));
+      const parentParts = file.relPath.split('/').filter(Boolean).slice(0, -1);
+      if (parentParts.length) await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(skillDir, ...parentParts));
+      await vscode.workspace.fs.writeFile(target, Buffer.from(file.content, 'utf8'));
+      written.push(target);
+    }
+  } catch (error) {
+    // Roll back any files we already wrote so the user does not get a half-built skill.
+    for (const uri of written.reverse()) {
+      try { await vscode.workspace.fs.delete(uri); } catch { /* best-effort */ }
+    }
+    throw error;
+  }
+  return { templateId, written: written.map(u => u.fsPath) };
 }
 
 function initializeSkillManager(context) {
@@ -148,9 +260,30 @@ async function chooseSkillLocation(title) {
   return vscode.window.showQuickPick(choices, { title, placeHolder: 'Choose where the skill should be stored', ignoreFocusOut: true });
 }
 
+async function chooseSkillTemplate() {
+  const items = Object.entries(SKILL_TEMPLATES).map(([id, tpl]) => ({
+    label: tpl.label,
+    description: tpl.description,
+    id
+  }));
+  return vscode.window.showQuickPick(items, {
+    title: 'Create Skill — Template',
+    placeHolder: 'Choose a starting structure for the new skill',
+    ignoreFocusOut: true
+  });
+}
+
 async function createSkill() {
+  return createSkillWizard();
+}
+
+async function createSkillWizard() {
   const location = await chooseSkillLocation('Create Skill — Location');
   if (!location) return;
+
+  const templatePick = await chooseSkillTemplate();
+  if (!templatePick) return;
+  const templateId = templatePick.id;
 
   const enteredName = await vscode.window.showInputBox({ title: 'Create Skill — Name', prompt: 'Use a short reusable name, e.g. code-review or ppt-maker', validateInput: value => slugify(value) ? undefined : 'Enter a valid skill name.', ignoreFocusOut: true });
   if (enteredName === undefined) return;
@@ -167,12 +300,21 @@ async function createSkill() {
   } catch {}
 
   await vscode.workspace.fs.createDirectory(skillDir);
-  await vscode.workspace.fs.writeFile(skillFile, Buffer.from(skillTemplate(name, description), 'utf8'));
+  let applyResult;
+  try {
+    applyResult = await applySkillTemplate(skillDir, templateId, name, description);
+  } catch (error) {
+    // Roll back the empty skill directory if creation failed before any file landed.
+    try { await vscode.workspace.fs.delete(skillDir, { recursive: true, useTrash: false }); } catch { /* best-effort */ }
+    vscode.window.showErrorMessage(`Skill creation failed: ${error instanceof Error ? error.message : String(error)}`, { modal: true });
+    return;
+  }
   invalidateSkillCache();
   const doc = await vscode.workspace.openTextDocument(skillFile);
   await vscode.window.showTextDocument(doc, { preview: false });
-  vscode.window.showInformationMessage(`Created ${location.scope} skill: ${name}`);
-  return { name, source: location.scope, path: skillFile.fsPath };
+  const fileCount = applyResult.written.length;
+  vscode.window.showInformationMessage(`Created ${location.scope} skill: ${name} (${templateId} template, ${fileCount} file${fileCount === 1 ? '' : 's'})`);
+  return { name, source: location.scope, path: skillFile.fsPath, template: templateId, files: fileCount };
 }
 
 function normalizedZipPath(value) {
@@ -304,4 +446,24 @@ async function installSkillFromZip() {
   }
 }
 
-module.exports = { initializeSkillManager, showSkillManager, createSkill, installSkillFromZip, inspectSkillZip };
+module.exports = {
+  initializeSkillManager,
+  showSkillManager,
+  createSkill,
+  createSkillWizard,
+  installSkillFromZip,
+  inspectSkillZip,
+  SKILL_TEMPLATES,
+  applySkillTemplate,
+  // template body builders (exported for tests; safe to call without vscode)
+  _templates: {
+    minimalSkillMarkdown,
+    multiFileSkillMarkdown,
+    referencesReadme,
+    exampleReference,
+    scriptsReadme,
+    helloJs,
+    agentsReadme,
+    assetsReadme
+  }
+};

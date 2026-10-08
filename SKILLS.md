@@ -154,18 +154,37 @@ Safety checks include:
 The Create Skill flow asks for:
 
 1. A storage location.
-2. A short skill name.
-3. A description explaining when the agent should use it.
+2. A template — choose the starting structure.
+3. A short skill name.
+4. A description explaining when the agent should use it.
+
+Four built-in templates are available:
+
+| Template | Files created | Use when |
+|---|---|---|
+| `Minimal` | `SKILL.md` | You want the legacy single-file flow or just a notes-only skill. |
+| `Document Skill` | `SKILL.md` + `references/` (README + example) + `assets/` (README) | The skill loads long-form docs the agent should read on demand. |
+| `Tool Skill` | `SKILL.md` + `references/` + `scripts/` (README + runnable `hello.js`) + `assets/` | The skill needs to ship runnable helpers the agent can invoke. |
+| `Full Bundle` | `SKILL.md` + `references/` + `scripts/` + `agents/` (README) + `assets/` | The skill is multi-faceted: docs, code, and auxiliary spec files. |
+
+The bundled `references/README.md`, `scripts/README.md`, `agents/README.md`, and `assets/README.md` describe the local convention for each directory. The included `scripts/hello.js` (Tool / Full templates) is a runnable Node script that prints `hello, <name>`; replace its body with the real logic your skill needs.
+
+The multi-file SKILL.md body adds a **Sub-resources** section that lists which sub-directories the skill ships, so the model knows which `skills_read_resource` calls are valid before reading anything. The Minimal template keeps the original compact body.
 
 Workspace skills created by the UI are placed under:
 
 ```text
-<workspace>/.agents/skills/<skill-name>/SKILL.md
+<workspace>/.agents/skills/<skill-name>/
+  SKILL.md
+  references/   (Document / Tool / Full)
+  scripts/      (Tool / Full)
+  agents/       (Full)
+  assets/       (Document / Tool / Full)
 ```
 
 Global skills can be created under any directory listed in `difyForVscode.skillsGlobalDirectories`.
 
-The generated file contains frontmatter plus a small starter workflow and rules section. It is opened immediately after creation so you can refine the instructions.
+The generated files are opened immediately after creation so you can refine the instructions.
 
 Names are normalized to lowercase slug form, for example:
 
@@ -174,7 +193,7 @@ PowerPoint Maker -> powerpoint-maker
 Code Review     -> code-review
 ```
 
-Creation refuses to overwrite an existing `SKILL.md` with the same name/location.
+Creation refuses to overwrite an existing `SKILL.md` with the same name/location. If a file write fails partway through the multi-file templates, the wizard rolls back every file it already wrote so the user never sees a half-built skill.
 
 ## Automatic refresh
 
