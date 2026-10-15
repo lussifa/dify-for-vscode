@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- Resize the marketplace icon to the required 128×128 PNG (the previous 117×122 version was rejected by the publisher and rendered as a blank tile)
+
 ## 0.5.1
 
 - Replace the marketplace and Activity Bar icon with the new Dify agent logo (`media/logo.png`); the previous placeholder icon is no longer shipped
