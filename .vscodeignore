@@ -3,3 +3,49 @@
 *.vsix
 .DS_Store
 **/*.map
+
+# --- VSIX size trimming (0.5.3) ---
+# The extension only requires `docx` for Word generation. Drop the four
+# alternate-build variants for every dist module and every type-declaration
+# duplicate; only `docx/dist/index.umd.cjs` (the package's `main`) and
+# `docx/dist/index.d.ts` are needed.
+node_modules/docx/dist/{charts,html,layout,math,shapes,watermarks}.*
+node_modules/docx/dist/*.d.cts
+node_modules/docx/dist/*.mjs
+node_modules/docx/dist/*.iife.js
+
+# Playwright's built-in Web UIs (Trace Viewer, HTML report, recorder,
+# dashboard). The extension only uses `chromium.launch()`; none of this
+# is loaded at runtime.
+node_modules/playwright-core/lib/vite/**
+
+# mammoth is consumed via `mammoth/lib/index.js` (Node API). Drop the
+# standalone browser bundle, browser-specific shims, test fixtures and
+# docs/news that ship alongside it.
+node_modules/mammoth/mammoth.browser.js
+node_modules/mammoth/mammoth.browser.min.js
+node_modules/mammoth/browser/**
+node_modules/mammoth/test/**
+node_modules/mammoth/README.md
+node_modules/mammoth/NEWS
+
+# exceljs entry-point is `exceljs.js`. `*.bare.js` is for special
+# bundler interop, `*.min.js` is for web deploys — neither is used
+# here.
+node_modules/exceljs/dist/exceljs.bare.js
+node_modules/exceljs/dist/exceljs.bare.min.js
+node_modules/exceljs/dist/exceljs.min.js
+
+# All @types packages are devDependencies pulled in transitively as
+# prodDeps. The .d.ts files are only consulted at editor-time; VS Code
+# never loads them at runtime.
+node_modules/@types/**/*.d.ts
+
+# playwright-core: TypeScript declaration files (1.9 MB). Only the .js
+# bundles in lib/ are required at runtime.
+node_modules/playwright-core/types/**
+
+# Playwright WebP trace codec — only required by `playwright show-trace`
+# / screenshot pipelines, not by `chromium.launch()`.
+node_modules/playwright-core/lib/webp_codec.wasm
+node_modules/playwright-core/lib/webp_codec.LICENSE
