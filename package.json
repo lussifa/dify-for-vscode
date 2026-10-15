@@ -2,7 +2,7 @@
   "name": "dify-for-vscode",
   "displayName": "Dify for VS Code",
   "description": "A Dify-powered VS Code agent platform with task-aware context management, presentation design, Office document generation, coding tools, browser automation, MCP, semantic vector search and CrewAI-inspired multi-agent orchestration.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "lussifa",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/lussifa/dify-for-vscode.git" },
@@ -32,7 +32,7 @@
     "onCommand:difyForVscode.semanticIndexStatus"
   ],
   "main": "./platform-entry.js",
-  "icon": "media/icon.png",
+  "icon": "media/logo.png",
   "contributes": {
     "commands": [
       { "command": "difyForVscode.configure", "title": "Dify for VS Code: Configure", "icon": "$(gear)" },
@@ -53,7 +53,7 @@
       { "command": "difyForVscode.buildSemanticIndex", "title": "Dify for VS Code: Build Semantic Workspace Index" },
       { "command": "difyForVscode.semanticIndexStatus", "title": "Dify for VS Code: Semantic Index Status" }
     ],
-    "viewsContainers": { "activitybar": [{ "id": "difyForVscode", "title": "Dify", "icon": "media/icon.svg" }] },
+    "viewsContainers": { "activitybar": [{ "id": "difyForVscode", "title": "Dify", "icon": "media/logo.png" }] },
     "views": { "difyForVscode": [{ "type": "webview", "id": "difyForVscode.chatView", "name": "Dify Agent Platform" }] },
     "menus": {
       "view/title": [

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- Replace the marketplace and Activity Bar icon with the new Dify agent logo (`media/logo.png`); the previous placeholder icon is no longer shipped
+- Realign README "Current release" with the new version
+
 ## 0.5.0
 
 - Replace the single-file Create Skill flow with a 4-step wizard that asks for **Location → Template → Name → Description**
